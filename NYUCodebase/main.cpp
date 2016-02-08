@@ -100,7 +100,6 @@ int main(int argc, char *argv[])
             someImgY = -1.5f;
         }
         someImgRotation += elapsed*80;
-        std::cout << someImgRotation << std::endl;
         modelMatrix.identity();
         modelMatrix.Translate(smileyX, smileyY, 0.0f);
         modelMatrix2.identity();
