@@ -13,22 +13,64 @@
 #define RESOURCE_FOLDER "NYUCodebase.app/Contents/Resources/"
 #endif
 
+float MaxYPos = 2.0f;
+float MaxXPos = 3.55f;
 
 SDL_Window* displayWindow;
 
 GLuint LoadTexture(const char *image_path);
 void setBackgroundColorAndClear();
 void setProgramMatrices(ShaderProgram &program, Matrix projectionMatrix, Matrix modelMatrix, Matrix viewMatrix);
+void drawTexture(GLuint theTexture, ShaderProgram program);
+
 
 
 class Sprite
 {
 public:
+    Sprite(Matrix modelMatrix, const char* imageName, float xPosition = 0.0f, float yPosition = 0.0f, float xVelocity = 0.0f, float yVelocity = 0.0f) : spriteModelMatrix(modelMatrix), xPosition(xPosition), yPosition(yPosition), xVelocity(xVelocity), yVelocity(yVelocity)
+    {
+        spriteTexture = LoadTexture(imageName);
+    }
+    
+    void Render(ShaderProgram program);
+    
+    void Update(float elapsed);
     
 private:
-    
+    float xPosition;
+    float yPosition;
+    float xVelocity;
+    float yVelocity;
+    GLuint spriteTexture;
+    Matrix spriteModelMatrix;
+    //float xAcceleration;
+    //float yAcceleration;
     
 };
+
+void Sprite::Render(ShaderProgram program)
+{
+    program.setModelMatrix(spriteModelMatrix);
+    drawTexture(spriteTexture, program);
+    
+}
+
+void Sprite::Update(float elapsed)
+{
+    xPosition += xVelocity * elapsed;
+    if(xPosition >= (MaxXPos-0.5f))
+    {
+        xPosition = -MaxXPos+0.5f;
+    }
+    yPosition += yVelocity * elapsed;
+    if(yPosition <= (-(MaxYPos-0.5f)))
+    {
+        yPosition = MaxYPos-0.5f;
+    }
+    spriteModelMatrix.identity();
+    spriteModelMatrix.Translate(xPosition, yPosition, 0.0f);
+}
 
 int main(int argc, char *argv[])
 {
@@ -40,10 +82,35 @@ int main(int argc, char *argv[])
     glewInit();
 #endif
     
+    //Program and window stuff
+    ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     glViewport(0, 0, 640, 360);
+    
+    //Animation, Matrix, and Sprites variables
     float lastFrameTicks = 0.0f;
+    Matrix modelMatrix;
+    Matrix sprite1ModelMatrix;
+    Matrix viewMatrix;
+    Matrix projectionMatrix;
+    float sprite1XPos = 0.0f;
+    float sprite1YPos = 0.0f;
+    float sprite1XVelo = 1.0f;
+    float sprite1YVelo = -1.0f;
+    Sprite p1Sprite(sprite1ModelMatrix, "p2_stand.png", sprite1XPos, sprite1YPos, sprite1XVelo, sprite1YVelo);
+    
+    
+    //initialize and set the 'end of program' boolean to false. Also initialize
+    //variable to catch events.
     SDL_Event event;
     bool done = false;
+    
+    //set the orthographic projection
+    projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
+    
+    //enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
     while (!done) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
@@ -53,7 +120,19 @@ int main(int argc, char *argv[])
         float ticks = (float)SDL_GetTicks() / 1000.0f;
         float elapsed = ticks - lastFrameTicks;
         lastFrameTicks = ticks;
+        
+        p1Sprite.Update(elapsed);
+        
+        program.setModelMatrix(modelMatrix);
+        program.setViewMatrix(viewMatrix);
+        program.setProjectionMatrix(projectionMatrix);
+        
         setBackgroundColorAndClear();
+        
+        glUseProgram(program.programID);
+        
+        p1Sprite.Render(program);
+        
         SDL_GL_SwapWindow(displayWindow);
     }
     
