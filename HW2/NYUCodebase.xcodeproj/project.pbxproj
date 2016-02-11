@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		102CC7091C6B080300F851F4 /* Smiley.png in Resources */ = {isa = PBXBuildFile; fileRef = 102CC7081C6B080300F851F4 /* Smiley.png */; };
+		102CC7111C6C1A7300F851F4 /* aPaddle.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 102CC7101C6C1A7300F851F4 /* aPaddle.jpg */; };
+		102CC7151C6C1FB200F851F4 /* pongBall.png in Resources */ = {isa = PBXBuildFile; fileRef = 102CC7141C6C1FB200F851F4 /* pongBall.png */; };
 		1082B3B31C698FDE00221B91 /* p2_stand.png in Resources */ = {isa = PBXBuildFile; fileRef = 1082B3B21C698FDE00221B91 /* p2_stand.png */; };
 		6D5A86AE19AE5C710066C1FD /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D5A86AD19AE5C710066C1FD /* Cocoa.framework */; };
 		6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 6D5A86B619AE5C710066C1FD /* InfoPlist.strings */; };
@@ -25,6 +28,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		102CC7081C6B080300F851F4 /* Smiley.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Smiley.png; sourceTree = "<group>"; };
+		102CC7101C6C1A7300F851F4 /* aPaddle.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = aPaddle.jpg; sourceTree = "<group>"; };
+		102CC7141C6C1FB200F851F4 /* pongBall.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pongBall.png; sourceTree = "<group>"; };
 		1082B3B21C698FDE00221B91 /* p2_stand.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = p2_stand.png; sourceTree = "<group>"; };
 		6D5A86AA19AE5C710066C1FD /* NYUCodebase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NYUCodebase.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D5A86AD19AE5C710066C1FD /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
@@ -150,9 +156,12 @@
 				6DE9D2F01BA6AB8C002D599C /* fragment_textured.glsl */,
 				6DC707691BA7273500225B7D /* vertex_textured.glsl */,
 				6DEF23BC1B96CC2600BCE792 /* Matrix.cpp */,
+				102CC7101C6C1A7300F851F4 /* aPaddle.jpg */,
 				6DEF23BD1B96CC2600BCE792 /* Matrix.h */,
+				102CC7081C6B080300F851F4 /* Smiley.png */,
 				6DEF23BE1B96CC2600BCE792 /* ShaderProgram.cpp */,
 				6DEF23BF1B96CC2600BCE792 /* ShaderProgram.h */,
+				102CC7141C6C1FB200F851F4 /* pongBall.png */,
 				6DEF23C01B96CC2600BCE792 /* vertex.glsl */,
 				1082B3B21C698FDE00221B91 /* p2_stand.png */,
 				6D5A86B919AE5C710066C1FD /* main.cpp */,
@@ -215,6 +224,9 @@
 			files = (
 				6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */,
 				6DEF23C11B96CC2600BCE792 /* fragment.glsl in Resources */,
+				102CC7091C6B080300F851F4 /* Smiley.png in Resources */,
+				102CC7111C6C1A7300F851F4 /* aPaddle.jpg in Resources */,
+				102CC7151C6C1FB200F851F4 /* pongBall.png in Resources */,
 				1082B3B31C698FDE00221B91 /* p2_stand.png in Resources */,
 				6DE9D2F11BA6AB8C002D599C /* fragment_textured.glsl in Resources */,
 				6D5A86C619AE5C710066C1FD /* Images.xcassets in Resources */,

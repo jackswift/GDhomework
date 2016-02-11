@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
     
     Matrix projectionMatrix;
     Matrix modelMatrix;
-    Matrix modelMatrix2;
-    Matrix modelMatrix3;
+    //Matrix modelMatrix2;
+    //Matrix modelMatrix3;
     Matrix viewMatrix;
     
     //positions of textures
@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
     //plane units of the game screen
     projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
     
+    glUseProgram(program.programID);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -100,31 +101,28 @@ int main(int argc, char *argv[])
             someImgY = -1.5f;
         }
         someImgRotation += elapsed*80;
-        modelMatrix.identity();
-        modelMatrix.Translate(smileyX, smileyY, 0.0f);
-        modelMatrix2.identity();
-        modelMatrix2.Translate(kittenX, kittenY, 0.0f);
-        modelMatrix3.identity();
-        modelMatrix3.Translate(someImgX, someImgY, 0.0f);
-        modelMatrix3.Rotate(someImgRotation * (3.14159/180.0f));
+        
+        
+        setBackgroundColorAndClear();
         
         program.setModelMatrix(modelMatrix);
         program.setViewMatrix(viewMatrix);
         program.setProjectionMatrix(projectionMatrix);
         
-        
-        setBackgroundColorAndClear();
-        
-        glUseProgram(program.programID);
-        
+        modelMatrix.identity();
+        modelMatrix.Translate(smileyX, smileyY, 0.0f);
+        program.setModelMatrix(modelMatrix);
         drawTexture(smileyFace, program);
         
-        program.setModelMatrix(modelMatrix2);
-        
+        modelMatrix.identity();
+        modelMatrix.Translate(kittenX, kittenY, 0.0f);
+        program.setModelMatrix(modelMatrix);
         drawTexture(kittenPic, program);
         
-        program.setModelMatrix(modelMatrix3);
-        
+        modelMatrix.identity();
+        modelMatrix.Translate(someImgX, someImgY, 0.0f);
+        modelMatrix.Rotate(someImgRotation * (3.14159/180.0f));
+        program.setModelMatrix(modelMatrix);
         drawTexture(someImg, program);
         
         SDL_GL_SwapWindow(displayWindow);
@@ -169,14 +167,8 @@ GLuint LoadTexture(const char *image_path)
 
 void drawTexture(GLuint theTexture, ShaderProgram program)
 {
-    //Matrix modelMatrix;
-    //Matrix viewMatrix;
     
-    
-    
-    //modelMatrix.identity();
-    //modelMatrix.Translate(x, y, 0.0f);
-    
+    glBindTexture(GL_TEXTURE_2D, theTexture);
     float vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f};
     
     glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
@@ -186,7 +178,7 @@ void drawTexture(GLuint theTexture, ShaderProgram program)
     glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
     glEnableVertexAttribArray(program.texCoordAttribute);
     
-    glBindTexture(GL_TEXTURE_2D, theTexture);
+    
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     glDisableVertexAttribArray(program.positionAttribute);

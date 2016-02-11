@@ -15,48 +15,72 @@
 
 float MaxYPos = 2.0f;
 float MaxXPos = 3.55f;
+bool done = false;
+
+
+float ticks;
+float lastFrameTicks = 0.0f;
+float elapsed;
+
+const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 SDL_Window* displayWindow;
 
 GLuint LoadTexture(const char *image_path);
 void setBackgroundColorAndClear();
 void setProgramMatrices(ShaderProgram &program, Matrix projectionMatrix, Matrix modelMatrix, Matrix viewMatrix);
-void drawTexture(GLuint theTexture, ShaderProgram program);
+void drawTexture(GLuint theTexture, ShaderProgram program, float height = 0.5f, float width = 0.5f);
+void Setup(Matrix &projectionMatrix);
 
+void ProcessEvents();
 
+void Update(Matrix &modelMatrix, float lastFrameTicks);
+void Render(Matrix &modelMatrix, ShaderProgram program);
 
-class Sprite
+void initializeEntities();
+
+class Entity
 {
 public:
-    Sprite(Matrix modelMatrix, const char* imageName, float xPosition = 0.0f, float yPosition = 0.0f, float xVelocity = 0.0f, float yVelocity = 0.0f) : spriteModelMatrix(modelMatrix), xPosition(xPosition), yPosition(yPosition), xVelocity(xVelocity), yVelocity(yVelocity)
-    {
-        spriteTexture = LoadTexture(imageName);
-    }
+    //Entity(const char* imageName, float xPosition = 0.0f, float yPosition = 0.0f, float xVelocity = 0.0f, float yVelocity = 0.0f) : xPosition(xPosition), yPosition(yPosition), xVelocity(xVelocity), yVelocity(yVelocity)
+    //{
+    //    EntityTexture = LoadTexture(imageName);
+    //}
     
-    void Render(ShaderProgram program);
+    //void Render(ShaderProgram program);
     
-    void Update(float elapsed);
+    //void Update(float elapsed);
     
-private:
+    void Draw(ShaderProgram program);
+    
     float xPosition;
     float yPosition;
+    float rotation;
+    
+    float height;
+    float width;
+    
+    float speed;
     float xVelocity;
     float yVelocity;
-    GLuint spriteTexture;
-    Matrix spriteModelMatrix;
+    
+    GLuint EntityTexture;
+    //Matrix EntityModelMatrix;
     //float xAcceleration;
     //float yAcceleration;
+private:
     
 };
 
-void Sprite::Render(ShaderProgram program)
+void Entity::Draw(ShaderProgram program)
 {
-    program.setModelMatrix(spriteModelMatrix);
-    drawTexture(spriteTexture, program);
+    //program.setModelMatrix(EntityModelMatrix);
+    drawTexture(EntityTexture, program, height, width);
     
 }
 
-void Sprite::Update(float elapsed)
+/*
+void Entity::Update(float elapsed)
 {
     xPosition += xVelocity * elapsed;
     if(xPosition >= (MaxXPos-0.5f))
@@ -68,70 +92,46 @@ void Sprite::Update(float elapsed)
     {
         yPosition = MaxYPos-0.5f;
     }
-    spriteModelMatrix.identity();
-    spriteModelMatrix.Translate(xPosition, yPosition, 0.0f);
+    EntityModelMatrix.identity();
+    EntityModelMatrix.Translate(xPosition, yPosition, 0.0f);
 }
+*/
 
+Entity p1Paddle;
+Entity pongBall;
 int main(int argc, char *argv[])
 {
-    SDL_Init(SDL_INIT_VIDEO);
-    displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 360, SDL_WINDOW_OPENGL);
-    SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
-    SDL_GL_MakeCurrent(displayWindow, context);
-#ifdef _WINDOWS
-    glewInit();
-#endif
-    
-    //Program and window stuff
-    ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
-    glViewport(0, 0, 640, 360);
-    
-    //Animation, Matrix, and Sprites variables
-    float lastFrameTicks = 0.0f;
-    Matrix modelMatrix;
-    Matrix sprite1ModelMatrix;
-    Matrix viewMatrix;
+    srand(time(0));
     Matrix projectionMatrix;
-    float sprite1XPos = 0.0f;
-    float sprite1YPos = 0.0f;
-    float sprite1XVelo = 1.0f;
-    float sprite1YVelo = -1.0f;
-    Sprite p1Sprite(sprite1ModelMatrix, "p2_stand.png", sprite1XPos, sprite1YPos, sprite1XVelo, sprite1YVelo);
+    Matrix modelMatrix;
+    Matrix viewMatrix;
+    Setup(projectionMatrix);
     
+    ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
+    //Animation, Matrix, and Entitys variables
     
-    //initialize and set the 'end of program' boolean to false. Also initialize
-    //variable to catch events.
-    SDL_Event event;
-    bool done = false;
-    
-    //set the orthographic projection
-    projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
+    initializeEntities();
     
     //enable blending
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     while (!done) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
-                done = true;
-            }
-        }
-        float ticks = (float)SDL_GetTicks() / 1000.0f;
-        float elapsed = ticks - lastFrameTicks;
+        ticks = (float)SDL_GetTicks() / 1000.0f;
+        elapsed = ticks - lastFrameTicks;
         lastFrameTicks = ticks;
+        ProcessEvents();
         
-        p1Sprite.Update(elapsed);
-        
+        glUseProgram(program.programID);
+        //p1Entity.Update(elapsed);
+        setBackgroundColorAndClear();
         program.setModelMatrix(modelMatrix);
         program.setViewMatrix(viewMatrix);
         program.setProjectionMatrix(projectionMatrix);
         
-        setBackgroundColorAndClear();
+        Update(modelMatrix, lastFrameTicks);
         
-        glUseProgram(program.programID);
-        
-        p1Sprite.Render(program);
+        Render(modelMatrix, program);
         
         SDL_GL_SwapWindow(displayWindow);
     }
@@ -140,10 +140,96 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+void Setup(Matrix &projectionMatrix)
+{
+    SDL_Init(SDL_INIT_VIDEO);
+    displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 360, SDL_WINDOW_OPENGL);
+    SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
+    SDL_GL_MakeCurrent(displayWindow, context);
+#ifdef _WINDOWS
+    glewInit();
+#endif
+    projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
+    //Program and window stuff
+    
+    glViewport(0, 0, 640, 360);
+    
+}
 
+void ProcessEvents()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) {
+            done = true;
+        }
+    }
+
+}
+
+void Update(Matrix &modelMatrix, float lastFrameTicks)
+{
+    /* PADDLE 1 MOVEMENT
+    if(keys[SDL_SCANCODE_W])
+    {
+        p1Paddle.yVelocity = 1.0f;
+        p1Paddle.yPosition += elapsed * (p1Paddle.speed * p1Paddle.yVelocity);
+        if(p1Paddle.yPosition > (MaxYPos-(p1Paddle.height)))
+        {
+            p1Paddle.speed = 0.0f;
+        }
+        else
+        {
+            p1Paddle.speed = 2.4f;
+        }
+    }
+    else if(keys[SDL_SCANCODE_S])
+    {
+        p1Paddle.yVelocity = -1.0f;
+        p1Paddle.yPosition += elapsed * (p1Paddle.speed * p1Paddle.yVelocity);
+        if(p1Paddle.yPosition < ((-MaxYPos)+(p1Paddle.height)))
+        {
+            p1Paddle.speed = 0.0f;
+        }
+        else
+        {
+            p1Paddle.speed = 2.4f;
+        }
+    }
+     
+    modelMatrix.identity();
+    modelMatrix.Translate(p1Paddle.xPosition, p1Paddle.yPosition, 0.0f);
+     */
+    if(keys[SDL_SCANCODE_SPACE] && pongBall.xVelocity == 0.0f && pongBall.yVelocity == 0.0f)
+    {
+        pongBall.xVelocity = (float(rand() % 100 + 1))/100;
+        pongBall.yVelocity = 0.90f;
+    }
+    pongBall.xPosition += elapsed * (pongBall.speed * pongBall.xVelocity);
+    pongBall.yPosition += elapsed * (pongBall.speed * pongBall.yVelocity);
+    if(pongBall.xPosition > MaxXPos-pongBall.width || pongBall.xPosition < (-MaxXPos)+pongBall.width)
+    {
+        pongBall.xVelocity = -pongBall.xVelocity;
+    }
+    if(pongBall.yPosition > MaxYPos-pongBall.height || pongBall.yPosition < (-MaxYPos)+pongBall.height)
+    {
+        pongBall.yVelocity = -pongBall.yVelocity;
+    }
+    modelMatrix.identity();
+    modelMatrix.Translate(pongBall.xPosition, pongBall.yPosition, 0.0f);
+    
+    
+}
+
+void Render(Matrix &modelMatrix, ShaderProgram program)
+{
+    p1Paddle.Draw(program);
+    pongBall.Draw(program);
+    
+}
 void setBackgroundColorAndClear()
 {
-    glClearColor(255.0f, 0.0f, 0.0f, 0.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
 }
@@ -173,17 +259,10 @@ GLuint LoadTexture(const char *image_path)
 }
 
 
-void drawTexture(GLuint theTexture, ShaderProgram program)
+void drawTexture(GLuint theTexture, ShaderProgram program, float height, float width)
 {
-    //Matrix modelMatrix;
-    //Matrix viewMatrix;
-    
-    
-    
-    //modelMatrix.identity();
-    //modelMatrix.Translate(x, y, 0.0f);
-    
-    float vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f};
+    float vertices[] = {-width, -height, width, -height, width, height,
+        -width, -height, width, height, -width, height};
     
     glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
     glEnableVertexAttribArray(program.positionAttribute);
@@ -197,6 +276,62 @@ void drawTexture(GLuint theTexture, ShaderProgram program)
     
     glDisableVertexAttribArray(program.positionAttribute);
     glDisableVertexAttribArray(program.texCoordAttribute);
+    
+}
+
+void initializeEntities()
+{
+    /* PADDLE 1 INITIATION
+    p1Paddle.EntityTexture = LoadTexture("aPaddle.jpg");
+    p1Paddle.speed = 2.4f;
+    p1Paddle.height = 0.55f;
+    p1Paddle.width = 0.04f;
+    p1Paddle.xPosition = -(MaxXPos-(p1Paddle.width*4));
+    p1Paddle.yPosition = 0.0f;
+     */
+    pongBall.EntityTexture = LoadTexture("pongBall.png");
+    pongBall.speed = 3.3f;
+    pongBall.height = 0.08f;
+    pongBall.width = 0.08f;
+    pongBall.xPosition = 0.0f;
+    pongBall.yPosition = 0.0f;
+    pongBall.yVelocity = 0.0f;
+    pongBall.xVelocity = 0.0f;
+    //std::cout << pongBall.xVelocity << std::endl;
+    //std::cout << pongBall.yVelocity << std::endl;
+    
+}
+
+bool DetectCollision(Entity entityOne, Entity entityTwo)
+{
+    //Box to box collision detection:
+    /*
+     a) is R1’s bottom higher than R2’s top? 
+     b) is R1’s top lower than R2’s bottom? 
+     c) is R1’s left larger than R2’s right?
+     d) is R1’s right smaller than R2’s left
+     
+     The rectangles are intersecting if NONE of the above are true.
+     */
+    float entOneLeft = entityOne.xPosition-entityOne.width;
+    float entOneRight = entityOne.xPosition+entityOne.width;
+    float entOneTop = entityOne.yPosition+entityOne.height;
+    float entOneBot = entityOne.yPosition-entityOne.height;
+    
+    float entTwoLeft = entityTwo.xPosition-entityTwo.width;
+    float entTwoRight = entityTwo.xPosition+entityTwo.width;
+    float entTwoTop = entityTwo.yPosition+entityTwo.height;
+    float entTwoBot = entityTwo.yPosition-entityTwo.height;
+    
+    if(!(entOneBot > entTwoTop) && !(entOneTop < entTwoBot) && !(entOneLeft > entTwoRight)
+       && !(entOneRight < entTwoLeft))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
     
 }
 
