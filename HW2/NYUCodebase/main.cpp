@@ -54,7 +54,7 @@ void Setup(ShaderProgram program, Matrix &projectionMatrix);
 void ProcessEvents();
 
 void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program);
-void Render(ShaderProgram program);
+void Render(ShaderProgram program, Matrix modelMatrix);
 void DrawSpriteSheetSprite(ShaderProgram &program, GLuint theTexture, int index, int SpriteXCount, int SpriteYCount);
 
 void initializeEntities();
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
         
         Update(lastFrameTicks, modelMatrix, program);
         
-        //Render(program);
+        Render(program, modelMatrix);
         
         SDL_GL_SwapWindow(displayWindow);
     }
@@ -189,66 +189,6 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
 {
     int collisionTest = 0;
     
-    modelMatrix.identity();
-    modelMatrix.Translate(p1Score.xPosition, p1Score.yPosition, 0.0f);
-    program.setModelMatrix(modelMatrix);
-    
-    switch (p1ScoreCount) {
-        case 0:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 48, 16, 16);
-            break;
-        case 1:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 49, 16, 16);
-            break;
-        case 2:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 50, 16, 16);
-            break;
-        case 3:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 51, 16, 16);
-            break;
-        case 4:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 52, 16, 16);
-            break;
-        case 5:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 53, 16, 16);
-            break;
-        case 6:
-            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 54, 16, 16);
-            break;
-        default:
-            break;
-    }
-    
-    modelMatrix.identity();
-    modelMatrix.Translate(p2Score.xPosition, p2Score.yPosition, 0.0f);
-    program.setModelMatrix(modelMatrix);
-    
-    switch (p2ScoreCount) {
-        case 0:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 48, 16, 16);
-            break;
-        case 1:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 49, 16, 16);
-            break;
-        case 2:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 50, 16, 16);
-            break;
-        case 3:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 51, 16, 16);
-            break;
-        case 4:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 52, 16, 16);
-            break;
-        case 5:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 53, 16, 16);
-            break;
-        case 6:
-            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 54, 16, 16);
-            break;
-        default:
-            break;
-    }
-    
     if(keys[SDL_SCANCODE_W])
     {
         p1Paddle.yVelocity = 1.0f;
@@ -275,18 +215,7 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
             p1Paddle.speed = 2.4f;
         }
     }
-    modelMatrix.identity();
-    modelMatrix.Translate(p1Paddle.xPosition, p1Paddle.yPosition, 0.0f);
-    program.setModelMatrix(modelMatrix);
-    p1Paddle.Draw(program);
     
-    /*
-    if(keys[SDL_SCANCODE_SPACE] && pongBall.xVelocity == 0.0f && pongBall.yVelocity == 0.0f)
-    {
-        pongBall.xVelocity = (float(rand() % 100 + 1))/100;
-        pongBall.yVelocity = (float(rand() % 100 + 1))/100;
-    }
-     */
     pongBall.xPosition += elapsed * (pongBall.speed * pongBall.xVelocity);
     pongBall.yPosition += elapsed * (pongBall.speed * pongBall.yVelocity);
     if(pongBall.xPosition > MaxXPos-pongBall.width)
@@ -313,6 +242,14 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
     if(pongBall.yPosition > MaxYPos-pongBall.height || pongBall.yPosition < (-MaxYPos)+pongBall.height)
     {
         pongBall.yVelocity = -pongBall.yVelocity;
+        if(pongBall.yPosition > 0)
+        {
+            pongBall.yPosition -= 0.1f;
+        }
+        else
+        {
+            pongBall.yPosition += 0.1f;
+        }
     }
     //collisionTest = DetectCollision(p1Paddle, pongBall);
     //if collision tests positive, OR pongBall hits the right wall:
@@ -394,10 +331,6 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
     {
         pongBall.xVelocity = -pongBall.xVelocity;
     }
-    modelMatrix.identity();
-    modelMatrix.Translate(pongBall.xPosition, pongBall.yPosition, 0.0f);
-    program.setModelMatrix(modelMatrix);
-    pongBall.Draw(program);
     
     if(keys[SDL_SCANCODE_UP])
     {
@@ -425,23 +358,88 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
             p2Paddle.speed = 2.4f;
         }
     }
+    //std::cout << p1ScoreCount << std::endl;
+    
+}
+
+void Render(ShaderProgram program, Matrix modelMatrix)
+{
+    modelMatrix.identity();
+    modelMatrix.Translate(p1Score.xPosition, p1Score.yPosition, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    switch (p1ScoreCount) {
+        case 0:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 48, 16, 16);
+            break;
+        case 1:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 49, 16, 16);
+            break;
+        case 2:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 50, 16, 16);
+            break;
+        case 3:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 51, 16, 16);
+            break;
+        case 4:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 52, 16, 16);
+            break;
+        case 5:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 53, 16, 16);
+            break;
+        case 6:
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 54, 16, 16);
+            break;
+        default:
+            break;
+    }
+    
+    modelMatrix.identity();
+    modelMatrix.Translate(p2Score.xPosition, p2Score.yPosition, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    switch (p2ScoreCount) {
+        case 0:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 48, 16, 16);
+            break;
+        case 1:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 49, 16, 16);
+            break;
+        case 2:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 50, 16, 16);
+            break;
+        case 3:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 51, 16, 16);
+            break;
+        case 4:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 52, 16, 16);
+            break;
+        case 5:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 53, 16, 16);
+            break;
+        case 6:
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 54, 16, 16);
+            break;
+        default:
+            break;
+    }
+    
+    modelMatrix.identity();
+    modelMatrix.Translate(p1Paddle.xPosition, p1Paddle.yPosition, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    p1Paddle.Draw(program);
+    
+    modelMatrix.identity();
+    modelMatrix.Translate(pongBall.xPosition, pongBall.yPosition, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    pongBall.Draw(program);
     
     modelMatrix.identity();
     modelMatrix.Translate(p2Paddle.xPosition, p2Paddle.yPosition, 0.0f);
     program.setModelMatrix(modelMatrix);
     p2Paddle.Draw(program);
     
-    std::cout << p1ScoreCount << std::endl;
     
 }
-/*
-void Render(ShaderProgram program)
-{
-    p1Paddle.Draw(program);
-    pongBall.Draw(program);
-    
-}
- */
+
 void setBackgroundColorAndClear()
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
