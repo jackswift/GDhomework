@@ -177,8 +177,10 @@ void ProcessEvents()
         {
             if(event.key.keysym.scancode == SDL_SCANCODE_SPACE && pongBall.xVelocity == 0.0f && pongBall.yVelocity == 0.0f)
             {
+                pongBall.speed = 2.8f;
                 pongBall.xVelocity = (float(rand() % 100 + 50))/100;
                 pongBall.yVelocity = (float(rand() % 100 + 50))/100;
+                
             }
         }
     }
@@ -256,7 +258,7 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
     // || pongBall.xPosition > MaxXPos-pongBall.width)
     if((collisionTest = DetectCollision(p1Paddle, pongBall)))
     {
-        pongBall.speed += 0.1;
+        pongBall.speed += 0.35;
         std::cout << collisionTest << std::endl;
         //switch xVelocity of ball (happens no matter what)
         pongBall.xVelocity = -pongBall.xVelocity;
@@ -292,7 +294,7 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
     }
     if ((collisionTest = DetectCollision(p2Paddle, pongBall)))
     {
-        pongBall.speed += 0.1;
+        pongBall.speed += 0.35;
         std::cout << collisionTest << std::endl;
         //switch xVelocity of ball (happens no matter what)
         pongBall.xVelocity = -pongBall.xVelocity;
@@ -390,6 +392,8 @@ void Render(ShaderProgram program, Matrix modelMatrix)
             DrawSpriteSheetSprite(program, p1Score.EntityTexture, 54, 16, 16);
             break;
         default:
+            p1ScoreCount = 0;
+            DrawSpriteSheetSprite(program, p1Score.EntityTexture, 48, 16, 16);
             break;
     }
     
@@ -419,6 +423,8 @@ void Render(ShaderProgram program, Matrix modelMatrix)
             DrawSpriteSheetSprite(program, p2Score.EntityTexture, 54, 16, 16);
             break;
         default:
+            p2ScoreCount = 0;
+            DrawSpriteSheetSprite(program, p2Score.EntityTexture, 48, 16, 16);
             break;
     }
     
