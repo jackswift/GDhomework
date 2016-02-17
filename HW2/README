@@ -1,0 +1,10 @@
+README for Homework 2: Pong assignment.
+
+Pretty much everything is working okay, but I do have a few notes:
+       Had a bug previously where if the ball hit the top or bottom axes, it would sometimes jerk along that axes, bouncing up and down nonstop until it would go out of bounds on the x axis, causing a restart of the game, or sometimes I would have to stop the game and re-run it. However, I do believe that I fixed this issue by increasing the y position of the ball a tiny amount when it hit off the top or bottom of the game screen. I have not had this bug occur again since I made this change, but it might happen for you. You never know~
+
+       For some reason, my setup() function does not seem to want to work. Also, whenever I make global variables, my functions get all wacky. I begin getting BAD_EXEC errors all over the place, and I have absolutely no idea how or why this happens. In particular, if I create a setup() function, where I initialize my game screen and set my orthographic projection matrix, my ShaderProgram variable starts throwing me really weird errors. I forget the exact error at the moment, but I think it had to do with a NULL being passed in, which does not make sense. If I don't create a setup function, and just throw the initializations into the beginning of main, everything works fine. I have absolutely no idea why. Anyways, that's all for the bad stuff.
+
+       I added a scoreboard, green and red flashes if either player 1 or player 2 scores, and I also tried to implement a variable angle disposition to the pong ball everytime the ball hit the paddle at a certain distance from the vertex of the paddle. This is a little finicky however, and it does not work as I think it should all of the time, but overall adds some skill to the game. 
+
+Hope you enjoy!
