@@ -8,3 +8,5 @@ Pretty much everything is working okay, but I do have a few notes:
        I added a scoreboard, green and red flashes if either player 1 or player 2 scores, and I also tried to implement a variable angle disposition to the pong ball everytime the ball hit the paddle at a certain distance from the vertex of the paddle. This is a little finicky however, and it does not work as I think it should all of the time, but overall adds some skill to the game. 
 
 Hope you enjoy!
+
+EDIT: Totally fixed my setup issue, I just got confused while I was making it, and I for some reason I did not realize that you had to make the shaderprogram AFTER setting everything up. Also I was doing some really silly stuff with the setup. But I realize what I was doing wrong now.
