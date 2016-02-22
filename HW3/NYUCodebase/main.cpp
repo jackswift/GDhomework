@@ -8,6 +8,7 @@
 #include "Matrix.h"
 #include "ShaderProgram.h"
 #include <vector>
+#include "Bullet.h"
 
 #ifdef _WINDOWS
 #define RESOURCE_FOLDER ""
@@ -63,6 +64,7 @@ class Entity
 public:
     void Draw(ShaderProgram program);
     
+    void Update();
     float xPosition;
     float yPosition;
     float rotation;
@@ -88,6 +90,11 @@ private:
 
 std::vector<Entity> vectorOfEnts;
 
+void Entity::Update()
+{
+    xPosition += (xVelocity * speed) * elapsed;
+    yPosition += (yVelocity * speed) * elapsed;
+}
 void Entity::Draw(ShaderProgram program)
 {
     //program.setModelMatrix(EntityModelMatrix);
@@ -167,6 +174,8 @@ int main(int argc, char *argv[])
         lastFrameTicks = ticks;
         ProcessEvents();
         
+        //std::cout << ticks << std::endl;
+        
         glUseProgram(program.programID);
         //p1Entity.Update(elapsed);
         setBackgroundColorAndClear();
@@ -196,7 +205,6 @@ void Setup(Matrix& projectionMatrix)
 #endif
     projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
     //Program and window stuff
-    
     glViewport(0, 0, 640*1.5, 360*1.5);
     
 }
@@ -217,6 +225,54 @@ void ProcessEvents()
 
 void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
 {
+    if(keys[SDL_SCANCODE_A])
+    {
+        vectorOfEnts[0].xVelocity = -1.0f;
+        vectorOfEnts[0].xPosition += elapsed * (vectorOfEnts[0].xVelocity * vectorOfEnts[0].speed);
+        //std::cout << vectorOfEnts[0].speed << std::endl;
+        if(vectorOfEnts[0].xPosition < (-MaxXPos) + (vectorOfEnts[0].sprite.width+0.05f))
+        {
+            
+            vectorOfEnts[0].speed = 0.0f;
+        }
+        else
+        {
+            vectorOfEnts[0].speed = 1.0f;
+        }
+    }
+    else if(keys[SDL_SCANCODE_D])
+    {
+        vectorOfEnts[0].xVelocity = 1.0f;
+        vectorOfEnts[0].xPosition += elapsed * (vectorOfEnts[0].xVelocity * vectorOfEnts[0].speed);
+        if(vectorOfEnts[0].xPosition > (MaxXPos) - (vectorOfEnts[0].sprite.width+0.05f))
+        {
+            vectorOfEnts[0].speed = 0.0f;
+        }
+        else
+        {
+            vectorOfEnts[0].speed = 1.0f;
+        }
+    }
+    for(int i = 1; i < vectorOfEnts.size(); i++)
+    {
+        if(vectorOfEnts[i].xPosition > (MaxXPos - (vectorOfEnts[i].width+0.1)) ||
+               vectorOfEnts[i].xPosition < ((-MaxXPos) + (vectorOfEnts[i].width+0.1)))
+        {
+            for(int i = 1; i < vectorOfEnts.size(); i++)
+            {
+                if(vectorOfEnts[i].xPosition > 0)
+                {
+                       vectorOfEnts[i].xPosition -= 0.01f;
+                }
+                else{
+                    vectorOfEnts[i].xPosition += 0.01f;
+                }
+                vectorOfEnts[i].xVelocity = -vectorOfEnts[i].xVelocity;
+                vectorOfEnts[i].yPosition -= 0.1;
+            }
+        }
+        vectorOfEnts[i].Update();
+    }
     
 }
 
@@ -298,17 +354,30 @@ void drawTexture(GLuint theTexture, ShaderProgram program, float height, float w
 
 void initializeEntities()
 {
-    Entity enemyEnt;
     GLuint SheetTextures = LoadTexture("sheet.png", false);
+    Entity playerEnt;
+    //x="224" y="832" width="99" height="75"
+    playerEnt.sprite = SheetSprite(SheetTextures, 224.0f/1024.0f, 832.0f/1024.0f, 99.0f/1024.0f, 75.0f/1024.0f, 0.2);
+    playerEnt.xVelocity = 0.0f;
+    playerEnt.yVelocity = 0.0f;
+    playerEnt.usesSprite = true;
+    playerEnt.rotation = 0.0f;
+    playerEnt.xPosition = 0.0f;
+    playerEnt.speed = 1.0f;
+    playerEnt.yPosition = -MaxYPos + 0.15f;
+    playerEnt.usesSprite = true;
+    vectorOfEnts.push_back(playerEnt);
+    Entity enemyEnt;
     float x = 0.44f + 0.44f + (-MaxXPos);
     float y = MaxYPos - 0.28f;
     float tempX = x;
     enemyEnt.sprite = SheetSprite(SheetTextures, 425.0f/1024.0f, 468.0f/1024.0f, 93.0f/1024.0f, 84.0f/1024.0f, 0.2);
-    enemyEnt.xVelocity = 0.0f;
+    enemyEnt.xVelocity = 1.0f;
     enemyEnt.yVelocity = 0.0f;
     enemyEnt.usesSprite = true;
     enemyEnt.rotation = 0.0f;
     enemyEnt.xPosition = tempX;
+    enemyEnt.speed = 0.45f;
     enemyEnt.yPosition = y;
     enemyEnt.usesSprite = true;
     vectorOfEnts.push_back(enemyEnt);
@@ -320,17 +389,17 @@ void initializeEntities()
             y -= 0.28;
         }
         enemyEnt.sprite = SheetSprite(SheetTextures, 425.0f/1024.0f, 468.0f/1024.0f, 93.0f/1024.0f, 84.0f/1024.0f, 0.2);
-        enemyEnt.xVelocity = 0.0f;
+        enemyEnt.xVelocity = 1.0f;
         enemyEnt.yVelocity = 0.0f;
         enemyEnt.usesSprite = true;
         enemyEnt.rotation = 0.0f;
         enemyEnt.xPosition = tempX;
         enemyEnt.yPosition = y;
         enemyEnt.usesSprite = true;
+        enemyEnt.speed = 0.45f;
         vectorOfEnts.push_back(enemyEnt);
-        
-        
     }
+    //std::cout << "size = " << vectorOfEnts.size() << std::endl;
 }
 
 bool DetectCollision(Entity entityOne/* paddle */, Entity entityTwo /*pongBall*/)

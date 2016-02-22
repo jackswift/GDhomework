@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6761C7AEBAA008A9C82 /* Bullet.cpp */; };
 		1098260F1C76DF4C00AA637C /* sheet.png in Resources */ = {isa = PBXBuildFile; fileRef = 1098260E1C76DF4C00AA637C /* sheet.png */; };
 		109826111C76DF7C00AA637C /* darkPurple.png in Resources */ = {isa = PBXBuildFile; fileRef = 109826101C76DF7C00AA637C /* darkPurple.png */; };
 		6D5A86AE19AE5C710066C1FD /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D5A86AD19AE5C710066C1FD /* Cocoa.framework */; };
@@ -26,6 +27,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1075E6751C7AEAE9008A9C82 /* Bullet.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bullet.h; sourceTree = "<group>"; };
+		1075E6761C7AEBAA008A9C82 /* Bullet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Bullet.cpp; sourceTree = "<group>"; };
 		1098260E1C76DF4C00AA637C /* sheet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sheet.png; sourceTree = "<group>"; };
 		109826101C76DF7C00AA637C /* darkPurple.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = darkPurple.png; sourceTree = "<group>"; };
 		6D5A86AA19AE5C710066C1FD /* NYUCodebase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NYUCodebase.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -159,6 +162,8 @@
 				6DEF23BF1B96CC2600BCE792 /* ShaderProgram.h */,
 				6DEF23C01B96CC2600BCE792 /* vertex.glsl */,
 				6D5A86B919AE5C710066C1FD /* main.cpp */,
+				1075E6751C7AEAE9008A9C82 /* Bullet.h */,
+				1075E6761C7AEBAA008A9C82 /* Bullet.cpp */,
 			);
 			name = Code;
 			sourceTree = "<group>";
@@ -238,6 +243,7 @@
 				6DEF23C31B96CC2600BCE792 /* ShaderProgram.cpp in Sources */,
 				6DEF23C21B96CC2600BCE792 /* Matrix.cpp in Sources */,
 				6D5A86BA19AE5C710066C1FD /* main.cpp in Sources */,
+				1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
