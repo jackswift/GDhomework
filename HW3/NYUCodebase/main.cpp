@@ -9,6 +9,8 @@
 #include "ShaderProgram.h"
 #include <vector>
 #include "Bullet.h"
+#include "LoadAndDrawFuncs.h"
+
 
 #ifdef _WINDOWS
 #define RESOURCE_FOLDER ""
@@ -16,16 +18,16 @@
 #define RESOURCE_FOLDER "NYUCodebase.app/Contents/Resources/"
 #endif
 
-int p1ScoreCount = 0;
-int p2ScoreCount = 0;
 float MaxYPos = 2.0f;
 float MaxXPos = 3.55f;
 bool done = false;
 
+std::vector<Bullet> playerBullets;
 
-float ticks;
-float lastFrameTicks = 0.0f;
-float elapsed;
+std::vector<Bullet> enemyBullets;
+//float ticks;
+//float lastFrameTicks = 0.0f;
+//float elapsed;
 
 
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -39,7 +41,7 @@ void Setup(Matrix &projectionMatrix);
 
 void ProcessEvents();
 
-void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program);
+void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program);
 void Render(ShaderProgram program, Matrix modelMatrix);
 void DrawspriteSprite(ShaderProgram &program, GLuint theTexture, int index, int SpriteXCount, int SpriteYCount);
 
@@ -64,7 +66,7 @@ class Entity
 public:
     void Draw(ShaderProgram program);
     
-    void Update();
+    void Update(float elapsed);
     float xPosition;
     float yPosition;
     float rotation;
@@ -75,6 +77,8 @@ public:
     float speed;
     float xVelocity;
     float yVelocity;
+    int column;
+    bool isLast;
     
     
     
@@ -90,7 +94,7 @@ private:
 
 std::vector<Entity> vectorOfEnts;
 
-void Entity::Update()
+void Entity::Update(float elapsed)
 {
     xPosition += (xVelocity * speed) * elapsed;
     yPosition += (yVelocity * speed) * elapsed;
@@ -141,7 +145,7 @@ void SheetSprite::Draw(ShaderProgram program) {
 }
 
 bool DetectCollision(Entity entityOne, Entity entityTwo);
-
+bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*bullet*/);
 //Entity p1Paddle;
 //Entity pongBall;
 //Entity p2Paddle;
@@ -154,6 +158,9 @@ int main(int argc, char *argv[])
     Matrix modelMatrix;
     Matrix viewMatrix;
     Setup(projectionMatrix);
+    float ticks;
+    float lastFrameTicks = 0.0f;
+    float elapsed;
     
     ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     //projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -183,7 +190,7 @@ int main(int argc, char *argv[])
         program.setViewMatrix(viewMatrix);
         program.setProjectionMatrix(projectionMatrix);
         
-        Update(lastFrameTicks, modelMatrix, program);
+        Update(elapsed, modelMatrix, program);
         
         Render(program, modelMatrix);
         
@@ -218,12 +225,20 @@ void ProcessEvents()
         }
         else if (event.type == SDL_KEYDOWN)
         {
+            if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+            {
+                if(playerBullets.size() <= 3)
+                {
+                    shootBullet(vectorOfEnts[0].xPosition, vectorOfEnts[0].yPosition+(vectorOfEnts[0].sprite.height)+0.06f, 1.0f, playerBullets, true);
+                }
+                
+            }
         }
     }
 
 }
 
-void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
+void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
 {
     if(keys[SDL_SCANCODE_A])
     {
@@ -253,6 +268,22 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
             vectorOfEnts[0].speed = 1.0f;
         }
     }
+    for(int i = 0; i < vectorOfEnts.size(); i++)
+    {
+        for(int j = 0; j < playerBullets.size(); j++)
+        {
+            if(DetectCollisionBullet(vectorOfEnts[i], playerBullets[j]))
+            {
+                //std::cout << "bullet j: " << j << " hit entity i: " << i << std::endl;
+                if(i != 0)
+                {
+                    vectorOfEnts.erase(vectorOfEnts.begin() + i);
+                    playerBullets.erase(playerBullets.begin() + j);
+                }
+               
+            }
+        }
+    }
     for(int i = 1; i < vectorOfEnts.size(); i++)
     {
         if(vectorOfEnts[i].xPosition > (MaxXPos - (vectorOfEnts[i].width+0.1)) ||
@@ -271,11 +302,15 @@ void Update(float lastFrameTicks, Matrix &modelMatrix, ShaderProgram program)
                 vectorOfEnts[i].yPosition -= 0.1;
             }
         }
-        vectorOfEnts[i].Update();
+        vectorOfEnts[i].Update(elapsed);
+    }
+    playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(), shouldRemoveBullet), playerBullets.end());
+    for(int i = 0; i < playerBullets.size(); i++)
+    {
+        playerBullets[i].Update(elapsed);
     }
     
 }
-
 void Render(ShaderProgram program, Matrix modelMatrix)
 {
     GLuint background = LoadTexture("darkPurple.png", true);
@@ -290,68 +325,17 @@ void Render(ShaderProgram program, Matrix modelMatrix)
         program.setModelMatrix(modelMatrix);
         vectorOfEnts[i].Draw(program);
     }
+    for(int i = 0; i < playerBullets.size(); i++)
+    {
+        playerBullets[i].Render(program, modelMatrix);
+    }
 }
-
 void setBackgroundColorAndClear()
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
 }
-
-GLuint LoadTexture(const char *image_path, bool isRepeating)
-{
-    SDL_Surface *surface = IMG_Load(image_path);
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_BGRA, GL_UNSIGNED_BYTE, surface->pixels);
-    if(isRepeating)
-    {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    }
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    SDL_FreeSurface(surface);
-    
-    return textureID;
-}
-
-
-void drawTexture(GLuint theTexture, ShaderProgram program, float height, float width)
-{
-    float vertices[] = {-width, -height,
-                        width, -height,
-                        width, height,
-                        -width, -height,
-                        width, height,
-                        -width, height};
-    
-    glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-    glEnableVertexAttribArray(program.positionAttribute);
-    //std::cout << program.positionAttribute << std::endl;
-    float texCoords[] = {0.0, 1.0,
-                         1.0, 1.0,
-                         1.0, 0.0,
-                         0.0, 1.0,
-                         1.0, 0.0,
-                         0.0, 0.0};
-    glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
-    glEnableVertexAttribArray(program.texCoordAttribute);
-    
-    glBindTexture(GL_TEXTURE_2D, theTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    glDisableVertexAttribArray(program.positionAttribute);
-    glDisableVertexAttribArray(program.texCoordAttribute);
-    
-}
-
 void initializeEntities()
 {
     GLuint SheetTextures = LoadTexture("sheet.png", false);
@@ -367,7 +351,9 @@ void initializeEntities()
     playerEnt.yPosition = -MaxYPos + 0.15f;
     playerEnt.usesSprite = true;
     vectorOfEnts.push_back(playerEnt);
+    
     Entity enemyEnt;
+    
     float x = 0.44f + 0.44f + (-MaxXPos);
     float y = MaxYPos - 0.28f;
     float tempX = x;
@@ -380,6 +366,8 @@ void initializeEntities()
     enemyEnt.speed = 0.45f;
     enemyEnt.yPosition = y;
     enemyEnt.usesSprite = true;
+    enemyEnt.isLast = false;
+    enemyEnt.column = 0;
     vectorOfEnts.push_back(enemyEnt);
     for(int i = 1; i < 55; i++)
     {
@@ -397,6 +385,16 @@ void initializeEntities()
         enemyEnt.yPosition = y;
         enemyEnt.usesSprite = true;
         enemyEnt.speed = 0.45f;
+        enemyEnt.column = i % 11;
+        std::cout << i << "'s column = " << enemyEnt.column << std::endl;
+        if(i >= 44)
+        {
+            enemyEnt.isLast = true;
+        }
+        else
+        {
+            enemyEnt.isLast = false;
+        }
         vectorOfEnts.push_back(enemyEnt);
     }
     //std::cout << "size = " << vectorOfEnts.size() << std::endl;
@@ -424,6 +422,46 @@ bool DetectCollision(Entity entityOne/* paddle */, Entity entityTwo /*pongBall*/
     float entTwoBot = entityTwo.yPosition-entityTwo.height;
     
     
+    //Box to box collision detection:
+    /*
+     a) is R1’s bottom higher than R2’s top?
+     b) is R1’s top lower than R2’s bottom?
+     c) is R1’s left larger than R2’s right?
+     d) is R1’s right smaller than R2’s left
+     */
+    //The rectangles are intersecting if NONE of the above are true.
+    
+    if(!(entOneBot > entTwoTop) && !(entOneTop < entTwoBot) && !(entOneLeft > entTwoRight)
+       && !(entOneRight < entTwoLeft))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+    
+}
+bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*pongBall*/)
+{
+    //float yDifferenceBetweenTwoEntities = 0.0f;
+    
+    //x position of the left hand side of entityOne
+    float entOneLeft = entityOne.xPosition-entityOne.sprite.width;
+    //x position of the right hand side of entityOne
+    float entOneRight = entityOne.xPosition+entityOne.sprite.width;
+    //y position of the top of entityOne
+    float entOneTop = entityOne.yPosition+entityOne.sprite.height;
+    //y position of the bottom of entityOne
+    float entOneBot = entityOne.yPosition-entityOne.sprite.height;
+    //x position of the left hand side of bullet
+    float entTwoLeft = bullet.x-bullet.width;
+    //x position of the right hand side of bullet
+    float entTwoRight = bullet.x+bullet.width;
+    //y position of the top of bullet
+    float entTwoTop = bullet.y+bullet.height;
+    //y position of the bot of bullet
+    float entTwoBot = bullet.y-bullet.height;
     
     //Box to box collision detection:
     /*
@@ -446,76 +484,5 @@ bool DetectCollision(Entity entityOne/* paddle */, Entity entityTwo /*pongBall*/
     
 }
 
-void DrawspriteSprite(ShaderProgram &program, GLuint theTexture, int index, int spriteCountX, int spriteCountY)
-{
-    float u = (float)(((int)index) % spriteCountX) / (float) spriteCountX;
-    float v = (float)(((int)index) / spriteCountX) / (float) spriteCountY;
-    float spriteWidth = 1.0/(float)spriteCountX;
-    float spriteHeight = 1.0/(float)spriteCountY;
-    GLfloat texCoords[] = {
-        u, v+spriteHeight,
-        u+spriteWidth, v,
-        u, v,
-        u+spriteWidth, v,
-        u, v+spriteHeight,
-        u+spriteWidth, v+spriteHeight
-    };
-    
-    float vertices[] = {-0.5f, -0.5f,
-                        0.5f, 0.5f,
-                        -0.5f, 0.5f,
-                        0.5f, 0.5f,
-                        -0.5f, -0.5f,
-                        0.5f, -0.5f};
-    
-    glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-    glEnableVertexAttribArray(program.positionAttribute);
-    //std::cout << program.positionAttribute << std::endl;
-    //float texCoords[] = {0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0};
-    glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
-    glEnableVertexAttribArray(program.texCoordAttribute);
-    
-    glBindTexture(GL_TEXTURE_2D, theTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    glDisableVertexAttribArray(program.positionAttribute);
-    glDisableVertexAttribArray(program.texCoordAttribute);
-    
-}
-
-
-void DrawText(ShaderProgram *program, int fontTexture, std::string text, float size, float spacing) {
-    float texture_size = 1.0/16.0f;
-    std::vector<float> vertexData;
-    std::vector<float> texCoordData;
-    for(int i=0; i < text.size(); i++) {
-        float texture_x = (float)(((int)text[i]) % 16) / 16.0f;
-        float texture_y = (float)(((int)text[i]) / 16) / 16.0f;
-        vertexData.insert(vertexData.end(), {
-            ((size+spacing) * i) + (-0.5f * size), 0.5f * size,
-            ((size+spacing) * i) + (-0.5f * size), -0.5f * size,
-            ((size+spacing) * i) + (0.5f * size), 0.5f * size,
-            ((size+spacing) * i) + (0.5f * size), -0.5f * size,
-            ((size+spacing) * i) + (0.5f * size), 0.5f * size,
-            ((size+spacing) * i) + (-0.5f * size), -0.5f * size,
-        });
-        texCoordData.insert(texCoordData.end(), {
-            texture_x, texture_y,
-            texture_x, texture_y + texture_size,
-            texture_x + texture_size, texture_y,
-            texture_x + texture_size, texture_y + texture_size,
-            texture_x + texture_size, texture_y,
-            texture_x, texture_y + texture_size,
-        }); }
-    glUseProgram(program->programID);
-    glVertexAttribPointer(program->positionAttribute, 2, GL_FLOAT, false, 0, vertexData.data());
-    glEnableVertexAttribArray(program->positionAttribute);
-    glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
-    glEnableVertexAttribArray(program->texCoordAttribute);
-    glBindTexture(GL_TEXTURE_2D, fontTexture);
-    glDrawArrays(GL_TRIANGLES, 0, text.size() * 6);
-    glDisableVertexAttribArray(program->positionAttribute);
-    glDisableVertexAttribArray(program->texCoordAttribute);
-}
 
 

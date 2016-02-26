@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6761C7AEBAA008A9C82 /* Bullet.cpp */; };
+		1075E67A1C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */; };
+		1075E67C1C7ED8D4008A9C82 /* laserGreen03.png in Resources */ = {isa = PBXBuildFile; fileRef = 1075E67B1C7ED8D4008A9C82 /* laserGreen03.png */; };
+		1075E67E1C7FD2A1008A9C82 /* laserRed03.png in Resources */ = {isa = PBXBuildFile; fileRef = 1075E67D1C7FD2A1008A9C82 /* laserRed03.png */; };
 		1098260F1C76DF4C00AA637C /* sheet.png in Resources */ = {isa = PBXBuildFile; fileRef = 1098260E1C76DF4C00AA637C /* sheet.png */; };
 		109826111C76DF7C00AA637C /* darkPurple.png in Resources */ = {isa = PBXBuildFile; fileRef = 109826101C76DF7C00AA637C /* darkPurple.png */; };
 		6D5A86AE19AE5C710066C1FD /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D5A86AD19AE5C710066C1FD /* Cocoa.framework */; };
@@ -29,6 +32,10 @@
 /* Begin PBXFileReference section */
 		1075E6751C7AEAE9008A9C82 /* Bullet.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bullet.h; sourceTree = "<group>"; };
 		1075E6761C7AEBAA008A9C82 /* Bullet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Bullet.cpp; sourceTree = "<group>"; };
+		1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LoadAndDrawFuncs.cpp; sourceTree = "<group>"; };
+		1075E6791C7ED5FB008A9C82 /* LoadAndDrawFuncs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LoadAndDrawFuncs.h; sourceTree = "<group>"; };
+		1075E67B1C7ED8D4008A9C82 /* laserGreen03.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = laserGreen03.png; sourceTree = "<group>"; };
+		1075E67D1C7FD2A1008A9C82 /* laserRed03.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = laserRed03.png; sourceTree = "<group>"; };
 		1098260E1C76DF4C00AA637C /* sheet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sheet.png; sourceTree = "<group>"; };
 		109826101C76DF7C00AA637C /* darkPurple.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = darkPurple.png; sourceTree = "<group>"; };
 		6D5A86AA19AE5C710066C1FD /* NYUCodebase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NYUCodebase.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -157,13 +164,17 @@
 				6DEF23BC1B96CC2600BCE792 /* Matrix.cpp */,
 				1098260E1C76DF4C00AA637C /* sheet.png */,
 				109826101C76DF7C00AA637C /* darkPurple.png */,
+				1075E67B1C7ED8D4008A9C82 /* laserGreen03.png */,
 				6DEF23BD1B96CC2600BCE792 /* Matrix.h */,
+				1075E67D1C7FD2A1008A9C82 /* laserRed03.png */,
 				6DEF23BE1B96CC2600BCE792 /* ShaderProgram.cpp */,
 				6DEF23BF1B96CC2600BCE792 /* ShaderProgram.h */,
 				6DEF23C01B96CC2600BCE792 /* vertex.glsl */,
 				6D5A86B919AE5C710066C1FD /* main.cpp */,
 				1075E6751C7AEAE9008A9C82 /* Bullet.h */,
 				1075E6761C7AEBAA008A9C82 /* Bullet.cpp */,
+				1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */,
+				1075E6791C7ED5FB008A9C82 /* LoadAndDrawFuncs.h */,
 			);
 			name = Code;
 			sourceTree = "<group>";
@@ -221,6 +232,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1075E67C1C7ED8D4008A9C82 /* laserGreen03.png in Resources */,
 				6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */,
 				6DEF23C11B96CC2600BCE792 /* fragment.glsl in Resources */,
 				6DE9D2F11BA6AB8C002D599C /* fragment_textured.glsl in Resources */,
@@ -228,6 +240,7 @@
 				6D5A86BE19AE5C710066C1FD /* Credits.rtf in Resources */,
 				1098260F1C76DF4C00AA637C /* sheet.png in Resources */,
 				6DEF23C41B96CC2600BCE792 /* vertex.glsl in Resources */,
+				1075E67E1C7FD2A1008A9C82 /* laserRed03.png in Resources */,
 				6DC7076A1BA7273500225B7D /* vertex_textured.glsl in Resources */,
 				109826111C76DF7C00AA637C /* darkPurple.png in Resources */,
 			);
@@ -244,6 +257,7 @@
 				6DEF23C21B96CC2600BCE792 /* Matrix.cpp in Sources */,
 				6D5A86BA19AE5C710066C1FD /* main.cpp in Sources */,
 				1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */,
+				1075E67A1C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
