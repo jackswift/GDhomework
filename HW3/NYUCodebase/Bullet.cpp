@@ -47,7 +47,15 @@ void shootBullet(float x, float y, float yVelocity, std::vector<Bullet> &bullets
     newBullet.height = 0.03f;
     newBullet.width = 0.015f;
     newBullet.yVelocity = yVelocity;
-    newBullet.speed = 3.5f;
+    if(isPlayer)
+    {
+        newBullet.speed = 3.5f;
+    }
+    else
+    {
+        newBullet.speed = 2.3f;
+    }
+    
     newBullet.timeAlive = 0.0f;
     bullets.push_back(newBullet);
 }

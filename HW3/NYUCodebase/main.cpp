@@ -23,13 +23,18 @@ float MaxXPos = 3.55f;
 bool done = false;
 
 std::vector<Bullet> playerBullets;
-
+std::string playerScoreStr;
 std::vector<Bullet> enemyBullets;
 //float ticks;
 //float lastFrameTicks = 0.0f;
 //float elapsed;
 
+enum GameState {STATE_MAIN_MENU, STATE_GAME_LEVEL, PLAYER_HIT};
 
+int state;
+
+int playerScore = 0;
+int playerLives = 2;
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 SDL_Window* displayWindow;
@@ -42,8 +47,15 @@ void Setup(Matrix &projectionMatrix);
 void ProcessEvents();
 
 void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program);
+void UpdateMainMenu(float elapsed, Matrix &modelMatrix, ShaderProgram program);
+void UpdateGameLevel(float elapsed, Matrix &modelMatrix, ShaderProgram program);
 void Render(ShaderProgram program, Matrix modelMatrix);
+void RenderGameLevel(ShaderProgram program, Matrix modelMatrix);
+void RenderMainMenu(ShaderProgram program, Matrix modelMatrix);
 void DrawspriteSprite(ShaderProgram &program, GLuint theTexture, int index, int SpriteXCount, int SpriteYCount);
+void resetGame();
+void userGetsHit(ShaderProgram program, Matrix modelMatrix);
+void RenderPlayerHit(ShaderProgram program, Matrix modelMatrix);
 
 void initializeEntities();
 
@@ -80,6 +92,9 @@ public:
     int column;
     bool isLast;
     
+    float xStartPosition;
+    float yStartPosition;
+    
     
     
     GLuint EntityTexture;
@@ -91,6 +106,8 @@ public:
 private:
     
 };
+
+int findNextLastEntity(std::vector<Entity> entities, int column, int posToNotCheck);
 
 std::vector<Entity> vectorOfEnts;
 
@@ -154,6 +171,7 @@ bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*bullet*
 
 int main(int argc, char *argv[])
 {
+    state = STATE_MAIN_MENU;
     Matrix projectionMatrix;
     Matrix modelMatrix;
     Matrix viewMatrix;
@@ -161,6 +179,8 @@ int main(int argc, char *argv[])
     float ticks;
     float lastFrameTicks = 0.0f;
     float elapsed;
+    
+    //int x = 200;
     
     ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     //projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -225,26 +245,49 @@ void ProcessEvents()
         }
         else if (event.type == SDL_KEYDOWN)
         {
-            if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+            if(state == STATE_GAME_LEVEL)
             {
-                if(playerBullets.size() <= 3)
+                if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
                 {
-                    shootBullet(vectorOfEnts[0].xPosition, vectorOfEnts[0].yPosition+(vectorOfEnts[0].sprite.height)+0.06f, 1.0f, playerBullets, true);
-                }
+                    if(playerBullets.size() <= 3)
+                    {
+                        shootBullet(vectorOfEnts[0].xPosition, vectorOfEnts[0].yPosition+(vectorOfEnts[0].sprite.height)+0.09f, 1.0f, playerBullets, true);
+                    }
                 
+                }
+            }
+            else if(state == PLAYER_HIT)
+            {
+                if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+                {
+                    state = STATE_GAME_LEVEL;
+                }
+            }
+            if(state == STATE_MAIN_MENU)
+            {
+                if(event.key.keysym.scancode == SDL_SCANCODE_1)
+                {
+                    state = STATE_GAME_LEVEL;
+                }
             }
         }
     }
 
 }
-
-void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
+void UpdateMainMenu(float elapsed, Matrix &modelMatrix, ShaderProgram program)
 {
+    //resetGame();
+    //std::cout << vectorOfEnts.size() << std::endl;
+}
+void UpdateGameLevel(float elapsed, Matrix &modelMatrix, ShaderProgram program)
+{
+    //update player entity to move to the left when "A" is pressed
     if(keys[SDL_SCANCODE_A])
     {
         vectorOfEnts[0].xVelocity = -1.0f;
         vectorOfEnts[0].xPosition += elapsed * (vectorOfEnts[0].xVelocity * vectorOfEnts[0].speed);
         //std::cout << vectorOfEnts[0].speed << std::endl;
+        //Make sure player doesn't fly off screen
         if(vectorOfEnts[0].xPosition < (-MaxXPos) + (vectorOfEnts[0].sprite.width+0.05f))
         {
             
@@ -255,6 +298,7 @@ void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
             vectorOfEnts[0].speed = 1.0f;
         }
     }
+    //update player entity to move to the right when "D" is pressed
     else if(keys[SDL_SCANCODE_D])
     {
         vectorOfEnts[0].xVelocity = 1.0f;
@@ -268,32 +312,71 @@ void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
             vectorOfEnts[0].speed = 1.0f;
         }
     }
+    
+    //go through each entity in the vectorOfEnts, check if any of these are hit
+    //by a bullet
     for(int i = 0; i < vectorOfEnts.size(); i++)
     {
+        int v1 = rand() % 1000;
         for(int j = 0; j < playerBullets.size(); j++)
         {
             if(DetectCollisionBullet(vectorOfEnts[i], playerBullets[j]))
             {
-                //std::cout << "bullet j: " << j << " hit entity i: " << i << std::endl;
-                if(i != 0)
+                playerScore += 10;
+                if(vectorOfEnts[i].isLast)
                 {
-                    vectorOfEnts.erase(vectorOfEnts.begin() + i);
-                    playerBullets.erase(playerBullets.begin() + j);
+                    int x = findNextLastEntity(vectorOfEnts, vectorOfEnts[i].column, i);
+                    vectorOfEnts[x].isLast = true;
+                    //std::cout << "column hit was: " << vectorOfEnts[i].column << " pos of new last = " << x << std::endl;
                 }
-               
+                vectorOfEnts.erase(vectorOfEnts.begin() + i);
+                playerBullets.erase(playerBullets.begin() + j);
+            }
+            
+        }
+        //check if the entity is the last of its row:
+        if(vectorOfEnts[i].isLast)
+        {
+            //random number generator to decide if the entity is going
+            //to shoot a bullet
+            if(v1 <= 5)
+            {
+                shootBullet(vectorOfEnts[i].xPosition, vectorOfEnts[i].yPosition - (vectorOfEnts[i].sprite.height + 0.09), -1.0f, enemyBullets, false);
             }
         }
     }
+    //Check if player gets hit by enemy bullets
+    for(int i = 0; i < enemyBullets.size(); i++)
+    {
+        //FOR NOW: end game if player gets hit
+        if(DetectCollisionBullet(vectorOfEnts[0], enemyBullets[i]))
+        {
+            std::cout << playerLives << std::endl;
+            if(playerLives < 0)
+            {
+                resetGame();
+                state = STATE_MAIN_MENU;
+            }
+            else
+            {
+                playerLives--;
+            }
+            userGetsHit(program, modelMatrix);
+            //std::cout << playerLives << std::endl;
+        }
+        
+    }
+    
     for(int i = 1; i < vectorOfEnts.size(); i++)
     {
         if(vectorOfEnts[i].xPosition > (MaxXPos - (vectorOfEnts[i].width+0.1)) ||
-               vectorOfEnts[i].xPosition < ((-MaxXPos) + (vectorOfEnts[i].width+0.1)))
+           vectorOfEnts[i].xPosition < ((-MaxXPos) + (vectorOfEnts[i].width+0.1)))
         {
             for(int i = 1; i < vectorOfEnts.size(); i++)
             {
                 if(vectorOfEnts[i].xPosition > 0)
                 {
-                       vectorOfEnts[i].xPosition -= 0.01f;
+                    vectorOfEnts[i].xPosition -= 0.01f;
                 }
                 else{
                     vectorOfEnts[i].xPosition += 0.01f;
@@ -309,17 +392,59 @@ void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
     {
         playerBullets[i].Update(elapsed);
     }
+    enemyBullets.erase(std::remove_if(enemyBullets.begin(), enemyBullets.end(), shouldRemoveBullet), enemyBullets.end());
+    for(int i = 0; i < enemyBullets.size(); i++)
+    {
+        enemyBullets[i].Update(elapsed);
+    }
     
+    
+    std::ostringstream playerScoreConv;
+    playerScoreConv << playerScore;
+    
+    playerScoreStr = playerScoreConv.str();
+    
+    
+
 }
-void Render(ShaderProgram program, Matrix modelMatrix)
+void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
+{
+    switch(state)
+    {
+        case STATE_GAME_LEVEL:
+            UpdateGameLevel(elapsed, modelMatrix, program);
+            break;
+        case STATE_MAIN_MENU:
+            UpdateMainMenu(elapsed, modelMatrix, program);
+            break;
+    }
+}
+
+int findNextLastEntity(std::vector<Entity> entities, int column, int posNotToCheck)
+{
+    int entPosToReturn = -5000;
+    for(int i = 0; i < entities.size(); i++)
+    {
+        if(i != posNotToCheck)
+        {
+            if(entities[i].column == column)
+            {
+                entPosToReturn = i;
+            }
+        }
+    }
+    return entPosToReturn;
+}
+
+void RenderGameLevel(ShaderProgram program, Matrix modelMatrix)
 {
     GLuint background = LoadTexture("darkPurple.png", true);
+    GLuint fontSheet = LoadTexture("font1.png", false);
     SheetSprite backgroundSprite(background, 0.0f, 0.0f, 3.55f, 2.0f, 4.0f);
     modelMatrix.identity();
     backgroundSprite.Draw(program);
     for(int i = 0; i < vectorOfEnts.size(); i++)
     {
-        //std::cout << "i = " << i << " x = " << vectorOfEnts[i].xPosition << " y = " << vectorOfEnts[i].yPosition << std::endl;
         modelMatrix.identity();
         modelMatrix.Translate(vectorOfEnts[i].xPosition, vectorOfEnts[i].yPosition, 0.0f);
         program.setModelMatrix(modelMatrix);
@@ -328,6 +453,105 @@ void Render(ShaderProgram program, Matrix modelMatrix)
     for(int i = 0; i < playerBullets.size(); i++)
     {
         playerBullets[i].Render(program, modelMatrix);
+    }
+    for(int i = 0; i < enemyBullets.size(); i++)
+    {
+        enemyBullets[i].Render(program, modelMatrix);
+    }
+    std::string score = "Score: ";
+    modelMatrix.identity();
+    modelMatrix.Translate(-1.25f, MaxYPos - 0.1f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, score, 0.40f, -0.18f);
+    
+    modelMatrix.identity();
+    modelMatrix.Translate(0.0f, MaxYPos - 0.1f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, playerScoreStr, 0.40f, -0.1f);
+    
+    for(int i = 0; i < playerLives; i++)
+    {
+        modelMatrix.identity();
+        modelMatrix.Translate(-MaxXPos+(vectorOfEnts[0].sprite.width*((i*3)+2)), -MaxYPos+vectorOfEnts[0].sprite.height, 0.0f);
+        program.setModelMatrix(modelMatrix);
+        vectorOfEnts[0].Draw(program);
+    }
+    
+}
+void RenderMainMenu(ShaderProgram program, Matrix modelMatrix)
+{
+    //Background of game: (purple with stars)
+    GLuint fontSheet = LoadTexture("font1.png", false);
+    GLuint background = LoadTexture("darkPurple.png", true);
+    SheetSprite backgroundSprite(background, 0.0f, 0.0f, 3.55f, 2.0f, 4.0f);
+    backgroundSprite.Draw(program);
+    
+    //SpaceInvaders Text:
+    std::string text = "Space Invaders!";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*5.1f, 1.7f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.35f, -0.1f);
+    
+    std::string mainMenu = "Main Menu";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.3f*4.0f, 1.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, mainMenu, 0.38f, -0.1f);
+    
+    std::string playerOne = "Press 1 for one player";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.3f*5.6f, -0.05f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, playerOne, 0.25f, -0.1f);
+    
+    
+}
+void RenderPlayerHit(ShaderProgram program, Matrix modelMatrix)
+{
+    GLuint background = LoadTexture("darkPurple.png", true);
+    SheetSprite backgroundSprite(background, 0.0f, 0.0f, 3.55f, 2.0f, 4.0f);
+    backgroundSprite.Draw(program);
+    
+    GLuint fontSheet = LoadTexture("font1.png", false);
+    std::string text = "You got hit, you have : ";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.35f*5.1f, 0.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.20f, -0.1f);
+    
+    std::ostringstream playerLivesConv;
+    playerLivesConv << playerLives;
+    modelMatrix.identity();
+    modelMatrix.Translate(0.60f, 0.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, playerLivesConv.str(), 0.20f, -0.1f);
+    
+    text = "live(s) left.";
+    modelMatrix.identity();
+    modelMatrix.Translate(0.75f, 0.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.20f, -0.1f);
+    
+    text = "Press space to continue.";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.35f*3.5f, -0.5f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.20f, -0.1f);
+}
+void Render(ShaderProgram program, Matrix modelMatrix)
+{
+    switch(state)
+    {
+        case STATE_GAME_LEVEL:
+            RenderGameLevel(program, modelMatrix);
+            break;
+        case STATE_MAIN_MENU:
+            RenderMainMenu(program, modelMatrix);
+            break;
+        case PLAYER_HIT:
+            RenderPlayerHit(program, modelMatrix);
+            break;
     }
 }
 void setBackgroundColorAndClear()
@@ -348,14 +572,22 @@ void initializeEntities()
     playerEnt.rotation = 0.0f;
     playerEnt.xPosition = 0.0f;
     playerEnt.speed = 1.0f;
-    playerEnt.yPosition = -MaxYPos + 0.15f;
+    playerEnt.yPosition = -MaxYPos + 0.25f;
+    playerEnt.xStartPosition = 0.0f;
+    playerEnt.yStartPosition = -MaxYPos + 0.25f;
     playerEnt.usesSprite = true;
+    playerEnt.isLast = false;
+    playerEnt.column = -5000;
+    playerEnt.height = 0.0f;
+    playerEnt.width = 0.0f;
+    playerEnt.EntityTexture = SheetTextures;
+    
     vectorOfEnts.push_back(playerEnt);
     
     Entity enemyEnt;
     
     float x = 0.44f + 0.44f + (-MaxXPos);
-    float y = MaxYPos - 0.28f;
+    float y = MaxYPos - 0.5f;
     float tempX = x;
     enemyEnt.sprite = SheetSprite(SheetTextures, 425.0f/1024.0f, 468.0f/1024.0f, 93.0f/1024.0f, 84.0f/1024.0f, 0.2);
     enemyEnt.xVelocity = 1.0f;
@@ -365,10 +597,16 @@ void initializeEntities()
     enemyEnt.xPosition = tempX;
     enemyEnt.speed = 0.45f;
     enemyEnt.yPosition = y;
+    enemyEnt.xStartPosition = tempX;
+    enemyEnt.yStartPosition = y;
     enemyEnt.usesSprite = true;
     enemyEnt.isLast = false;
+    enemyEnt.height = 0.0f;
+    enemyEnt.width = 0.0f;
     enemyEnt.column = 0;
+    enemyEnt.EntityTexture = SheetTextures;
     vectorOfEnts.push_back(enemyEnt);
+    //First enemy's x: -2.6628 First enemy's y: 1.5
     for(int i = 1; i < 55; i++)
     {
         tempX = x + ((i % 11) * 0.50);
@@ -383,10 +621,14 @@ void initializeEntities()
         enemyEnt.rotation = 0.0f;
         enemyEnt.xPosition = tempX;
         enemyEnt.yPosition = y;
+        enemyEnt.xStartPosition = tempX;
+        enemyEnt.yStartPosition = y;
         enemyEnt.usesSprite = true;
         enemyEnt.speed = 0.45f;
+        enemyEnt.EntityTexture = SheetTextures;
         enemyEnt.column = i % 11;
-        std::cout << i << "'s column = " << enemyEnt.column << std::endl;
+        //std::cout << "enemyEnt i = " << i << " column number = " << enemyEnt.column << std::endl;
+        //std::cout << "Does anything work here?" << std::endl;
         if(i >= 44)
         {
             enemyEnt.isLast = true;
@@ -397,8 +639,45 @@ void initializeEntities()
         }
         vectorOfEnts.push_back(enemyEnt);
     }
-    //std::cout << "size = " << vectorOfEnts.size() << std::endl;
+ 
 }
+void userGetsHit(ShaderProgram program, Matrix modelMatrix)
+{
+    long enemyBulletsSize = enemyBullets.size();
+    for(int i = 0; i < enemyBulletsSize; i++)
+    {
+        enemyBullets.pop_back();
+    }
+    for (int i = 0; i < vectorOfEnts.size(); i++)
+    {
+        vectorOfEnts[i].xPosition = vectorOfEnts[i].xStartPosition;
+        vectorOfEnts[i].yPosition = vectorOfEnts[i].yStartPosition;
+    }
+    state = PLAYER_HIT;
+    
+}
+void resetGame()
+{
+    playerLives = 2;
+    long vectorOfEntsSize = vectorOfEnts.size();
+    for(int i = 0; i < vectorOfEntsSize; i++)
+    {
+        vectorOfEnts.pop_back();
+    }
+   
+    long enemyBulletsSize = enemyBullets.size();
+    for(int i = 0; i < enemyBulletsSize; i++)
+    {
+        enemyBullets.pop_back();
+    }
+    long playerBulletsSize = playerBullets.size();
+    for(int i = 0; i < playerBulletsSize; i++)
+    {
+        playerBullets.pop_back();
+    }
+    initializeEntities();
+}
+
 
 bool DetectCollision(Entity entityOne/* paddle */, Entity entityTwo /*pongBall*/)
 {

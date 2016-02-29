@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		101999E91C822AD8001C7775 /* font1.png in Resources */ = {isa = PBXBuildFile; fileRef = 101999E81C822AD8001C7775 /* font1.png */; };
 		1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6761C7AEBAA008A9C82 /* Bullet.cpp */; };
 		1075E67A1C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */; };
 		1075E67C1C7ED8D4008A9C82 /* laserGreen03.png in Resources */ = {isa = PBXBuildFile; fileRef = 1075E67B1C7ED8D4008A9C82 /* laserGreen03.png */; };
@@ -30,6 +31,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		101999E81C822AD8001C7775 /* font1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = font1.png; sourceTree = "<group>"; };
 		1075E6751C7AEAE9008A9C82 /* Bullet.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bullet.h; sourceTree = "<group>"; };
 		1075E6761C7AEBAA008A9C82 /* Bullet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Bullet.cpp; sourceTree = "<group>"; };
 		1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LoadAndDrawFuncs.cpp; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				6DC707691BA7273500225B7D /* vertex_textured.glsl */,
 				6DEF23BC1B96CC2600BCE792 /* Matrix.cpp */,
 				1098260E1C76DF4C00AA637C /* sheet.png */,
+				101999E81C822AD8001C7775 /* font1.png */,
 				109826101C76DF7C00AA637C /* darkPurple.png */,
 				1075E67B1C7ED8D4008A9C82 /* laserGreen03.png */,
 				6DEF23BD1B96CC2600BCE792 /* Matrix.h */,
@@ -232,6 +235,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				101999E91C822AD8001C7775 /* font1.png in Resources */,
 				1075E67C1C7ED8D4008A9C82 /* laserGreen03.png in Resources */,
 				6D5A86B819AE5C710066C1FD /* InfoPlist.strings in Resources */,
 				6DEF23C11B96CC2600BCE792 /* fragment.glsl in Resources */,
