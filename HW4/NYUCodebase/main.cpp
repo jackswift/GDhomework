@@ -92,13 +92,7 @@ public:
     float speed;
     float xVelocity;
     float yVelocity;
-    int column;
-    bool isLast;
-    
-    float xStartPosition;
-    float yStartPosition;
-    
-    
+
     
     GLuint EntityTexture;
     SheetSprite sprite;
