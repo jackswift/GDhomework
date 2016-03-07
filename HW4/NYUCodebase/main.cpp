@@ -10,6 +10,8 @@
 #include <vector>
 #include "Bullet.h"
 #include "LoadAndDrawFuncs.h"
+#include "Entity.h"
+#include "MixerSound.h"
 
 
 #ifdef _WINDOWS
@@ -25,146 +27,55 @@ float MaxYPos = 2.0f;
 float MaxXPos = 3.55f;
 bool done = false;
 
-std::vector<Bullet> playerBullets;
-std::string playerScoreStr;
-std::vector<Bullet> enemyBullets;
-//float ticks;
-//float lastFrameTicks = 0.0f;
-//float elapsed;
-
+//Gamestate enum and state
 enum GameState {STATE_MAIN_MENU, STATE_GAME_LEVEL, PLAYER_HIT};
-
 int state;
 
-int playerScore = 0;
-int playerLives = 2;
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
 
 SDL_Window* displayWindow;
 
-GLuint LoadTexture(const char *image_path, bool isRepeating);
+//SETUP AND EVENTS FUNCTIONS
 void setBackgroundColorAndClear();
-void drawTexture(GLuint theTexture, ShaderProgram program, float height = 0.5f, float width = 0.5f);
 void Setup(Matrix &projectionMatrix);
-
 void ProcessEvents();
 
+//UPDATE FUNCTIONS
 void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program);
 void UpdateMainMenu(float elapsed, Matrix &modelMatrix, ShaderProgram program);
 void UpdateGameLevel(float elapsed, Matrix &modelMatrix, ShaderProgram program);
+
+//RENDER FUNCTIONS
 void Render(ShaderProgram program, Matrix modelMatrix);
 void RenderGameLevel(ShaderProgram program, Matrix modelMatrix);
 void RenderMainMenu(ShaderProgram program, Matrix modelMatrix);
-void DrawspriteSprite(ShaderProgram &program, GLuint theTexture, int index, int SpriteXCount, int SpriteYCount);
-void resetGame(bool gameOver);
-void userGetsHit(ShaderProgram program, Matrix modelMatrix);
 void RenderPlayerHit(ShaderProgram program, Matrix modelMatrix);
 
+//INITIALIZATION OF ENTITY VECTOR
 void initializeEntities();
 
-//Sheet Sprite for non-uniform sheets
-class SheetSprite {
-public:
-    SheetSprite() {}
-    SheetSprite(unsigned int textureID, float u, float v, float width, float height, float size) : textureID(textureID), u(u), v(v), width(width), height(height), size(size) {}
-    void Draw(ShaderProgram program);
-    float size;
-    unsigned int textureID;
-    float u;
-    float v;
-    float width;
-    float height;
-};
+//SOUND FUNCTIONS
+float getAudioForTime(long numSamples);
+void myAudioCallBack(void* userData, Uint8 *stream, int len);
+float mixSamples(float A, float B);
+int loadSound(const char* soundToLoad);
+void playSound(int soundIndex, bool loop);
 
-class Entity
-{
-public:
-    void Draw(ShaderProgram program);
-    
-    void Update(float elapsed);
-    float xPosition;
-    float yPosition;
-    float rotation;
-    
-    float height;
-    float width;
-    
-    float speed;
-    float xVelocity;
-    float yVelocity;
-
-    
-    GLuint EntityTexture;
-    SheetSprite sprite;
-    bool usesSprite;
-    //Matrix EntityModelMatrix;
-    //float xAcceleration;
-    //float yAcceleration;
-private:
-    
-};
-
-int findNextLastEntity(std::vector<Entity> entities, int column, int posToNotCheck);
-
-std::vector<Entity> vectorOfEnts;
-
-void Entity::Update(float elapsed)
-{
-    xPosition += (xVelocity * speed) * elapsed;
-    yPosition += (yVelocity * speed) * elapsed;
-}
-void Entity::Draw(ShaderProgram program)
-{
-    //program.setModelMatrix(EntityModelMatrix);
-    if(!usesSprite)
-    {
-        drawTexture(EntityTexture, program, height, width);
-    }
-    else
-    {
-        sprite.Draw(program);
-    }
-}
-
-void SheetSprite::Draw(ShaderProgram program) {
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    GLfloat texCoords[] = {
-        u, v+height,
-        u+width, v,
-        u, v,
-        u+width, v,
-        u, v+height,
-        u+width, v+height
-    };
-    float aspect = width / height;
-    float vertices[] = {
-        -0.5f * size * aspect, -0.5f * size,
-        0.5f * size * aspect, 0.5f * size,
-        -0.5f * size * aspect, 0.5f * size,
-        0.5f * size * aspect, 0.5f * size,
-        -0.5f * size * aspect, -0.5f * size ,
-        0.5f * size * aspect, -0.5f * size};
-    // draw our arrays
-    glVertexAttribPointer(program.positionAttribute, 2, GL_FLOAT, false, 0, vertices);
-    glEnableVertexAttribArray(program.positionAttribute);
-    
-    glVertexAttribPointer(program.texCoordAttribute, 2, GL_FLOAT, false, 0, texCoords);
-    glEnableVertexAttribArray(program.texCoordAttribute);
-    
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    glDisableVertexAttribArray(program.positionAttribute);
-    glDisableVertexAttribArray(program.texCoordAttribute);
-}
-
+//COLLISION DETECTION (MIGHT GO INTO ENTITY FILE)
 bool DetectCollision(Entity entityOne, Entity entityTwo);
 bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*bullet*/);
-//Entity p1Paddle;
-//Entity pongBall;
-//Entity p2Paddle;
-//Entity p1Score;
-//Entity p2Score;
+
+
+//Vector of entities
+std::vector<Entity> vectorOfEnts;
+
+//Vector of sounds
+std::vector<MixerSound> mixSounds;
+SDL_AudioSpec deviceSpec;
+
+
+//Num samples for sounds
+unsigned int numSamples = 0;
 
 int main(int argc, char *argv[])
 {
@@ -177,7 +88,16 @@ int main(int argc, char *argv[])
     float lastFrameTicks = 0.0f;
     float elapsed;
     
-    //int x = 200;
+    deviceSpec.freq = 44100;
+    deviceSpec.format = AUDIO_F32;
+    deviceSpec.channels = 1;
+    deviceSpec.callback = myAudioCallBack;
+    
+    //deviceSpec.userdata = (void*)this;
+    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &deviceSpec, 0, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    
+    SDL_PauseAudioDevice(dev, 0);
+    
     
     ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     //projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -208,6 +128,7 @@ int main(int argc, char *argv[])
         program.setProjectionMatrix(projectionMatrix);
         
         
+        
         float fixedElapsed = elapsed;
         if(fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
             fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
@@ -233,7 +154,7 @@ int main(int argc, char *argv[])
 
 void Setup(Matrix& projectionMatrix)
 {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
     displayWindow = SDL_CreateWindow("My Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640*1.5, 360*1.5, SDL_WINDOW_OPENGL);
     SDL_GLContext context = SDL_GL_CreateContext(displayWindow);
     SDL_GL_MakeCurrent(displayWindow, context);
@@ -316,14 +237,6 @@ void setBackgroundColorAndClear()
     
 }
 void initializeEntities()
-{
-    
-}
-void userGetsHit(ShaderProgram program, Matrix modelMatrix)
-{
-    
-}
-void resetGame(bool gameOver)
 {
     
 }
@@ -411,6 +324,88 @@ bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*pongBal
         return false;
     }
     
+}
+
+
+float getAudioForTime(long numSamples)
+{
+    double elapsed = ((double)numSamples)/44100.0;
+    return sin(elapsed * 2.0 * M_PI * 350.0);
+}
+int loadSound(const char* soundToLoad)
+{
+    Uint8 *buffer;
+    SDL_AudioSpec spec;
+    Uint32 bufferSize;
+    if(SDL_LoadWAV(soundToLoad, &spec, &buffer, &bufferSize) == NULL)
+    {
+        return -1;
+    }
+    SDL_AudioCVT cvt;
+    SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, deviceSpec.format, deviceSpec.channels, deviceSpec.freq);
+    cvt.len = bufferSize;
+    cvt.buf = new Uint8[bufferSize * cvt.len_mult];
+    
+    memcpy(cvt.buf, buffer, bufferSize);
+    
+    SDL_ConvertAudio(&cvt);
+    SDL_FreeWAV(buffer);
+    
+    MixerSound sound;
+    sound.buffer = cvt.buf;
+    sound.length = cvt.len_cvt;
+    sound.loaded = true;
+    sound.offset = 0;
+    sound.format = deviceSpec.format;
+    sound.volume = 1.0;
+    sound.playing = false;
+    mixSounds.push_back(sound);
+    return mixSounds.size()-1;
+}
+void myAudioCallBack(void* userData, Uint8 *stream, int len)
+{
+    memset(stream, 0, len);
+    for(int i = 0; i < mixSounds.size(); i++)
+    {
+        MixerSound *sound = &mixSounds[i];
+        if(sound->loaded && sound->playing)
+        {
+            for(int s = 0; s < len/4; s++)
+            {
+                float *sourceBuffer = (float*)(sound->buffer + sound->offset);
+                ((float*)stream)[s] = mixSamples(((float*)stream)[s], (sourceBuffer[s]*sound->volume));
+            }
+            sound->offset += len;
+            if(sound->offset >= sound->length - len)
+            {
+                if(sound->loop)
+                {
+                    sound->offset = 0;
+                }
+                else{
+                    sound->playing = false;
+                }
+            }
+        }
+    }
+}
+float mixSamples(float A, float B) {
+    if (A < 0 && B < 0 ) {
+        return  (A + B) - (A * B)/-1.0;
+    } else if (A > 0 && B > 0 ) {
+        return (A + B) - (A * B)/1.0;
+    } else {
+        return A + B;
+    }
+}
+void playSound(int soundIndex, bool loop)
+{
+    if(soundIndex >= 0 && soundIndex < mixSounds.size())
+    {
+        mixSounds[soundIndex].playing = true;
+        mixSounds[soundIndex].offset = 0;
+        mixSounds[soundIndex].loop = loop;
+    }
 }
 
 
