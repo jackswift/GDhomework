@@ -79,6 +79,7 @@ unsigned int numSamples = 0;
 
 int main(int argc, char *argv[])
 {
+    
     state = STATE_MAIN_MENU;
     Matrix projectionMatrix;
     Matrix modelMatrix;
@@ -88,16 +89,22 @@ int main(int argc, char *argv[])
     float lastFrameTicks = 0.0f;
     float elapsed;
     
-    deviceSpec.freq = 44100;
-    deviceSpec.format = AUDIO_F32;
-    deviceSpec.channels = 1;
-    deviceSpec.callback = myAudioCallBack;
+    SDL_AudioSpec requestSpec;
+    requestSpec.freq = 44100;
+    requestSpec.format = AUDIO_F32;
+    requestSpec.samples = 512;
+    requestSpec.channels = 1;
+    requestSpec.userdata = NULL;
+    requestSpec.callback = myAudioCallBack;
     
     //deviceSpec.userdata = (void*)this;
-    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &deviceSpec, 0, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &requestSpec, &deviceSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
     
     SDL_PauseAudioDevice(dev, 0);
     
+    int jamesBrown = loadSound("feelgood.wav");
+    
+    playSound(jamesBrown, true);
     
     ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     //projectionMatrix.setOrthoProjection(-3.55f, 3.55f, -2.0f, 2.0f, -1.0f, 1.0f);
@@ -342,7 +349,9 @@ int loadSound(const char* soundToLoad)
         return -1;
     }
     SDL_AudioCVT cvt;
-    SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, deviceSpec.format, deviceSpec.channels, deviceSpec.freq);
+    if(SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, deviceSpec.format, deviceSpec.channels, deviceSpec.freq) == -1) {
+        return -1;
+    }
     cvt.len = bufferSize;
     cvt.buf = new Uint8[bufferSize * cvt.len_mult];
     
@@ -365,6 +374,7 @@ int loadSound(const char* soundToLoad)
 void myAudioCallBack(void* userData, Uint8 *stream, int len)
 {
     memset(stream, 0, len);
+    
     for(int i = 0; i < mixSounds.size(); i++)
     {
         MixerSound *sound = &mixSounds[i];
