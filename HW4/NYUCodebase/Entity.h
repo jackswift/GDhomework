@@ -23,7 +23,7 @@ public:
     float height;
 };
 
-enum EntityType {ENTITY_PLAYER, ENTITY_ENEMY, ENTITY_COIN};
+enum EntityType {ENTITY_PLAYER, ENTITY_ENEMY, ENTITY_COIN, ENTITY_BLOCK};
 class Entity
 {
 public:
@@ -35,24 +35,25 @@ public:
     
     float xPosition;
     float yPosition;
-    float rotation;
+    float rotation = 0;
     
     float height;
     float width;
     
-    float xVelocity;
-    float yVelocity;
+    float xVelocity = 0;
+    float yVelocity = 0;
     float xFriction;
     
     
-    float acceleration_x;
-    float acceleration_y;
+    float acceleration_x = 0;
+    float acceleration_y = 0;
     float gravity_y;
     
     
     GLuint EntityTexture;
     SheetSprite sprite;
     bool usesSprite;
+    void setSprite(int spriteCountY, int spriteCountX, int index, float size);
     
     bool isStatic;
     EntityType entityType;
