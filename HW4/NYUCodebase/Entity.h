@@ -8,7 +8,7 @@
 
 #pragma once
 #include "ShaderProgram.h"
-
+#include "Vector.h"
 
 class SheetSprite {
 public:
@@ -57,6 +57,8 @@ public:
     
     bool isStatic;
     EntityType entityType;
+    
+    Vector entityVector;
     
     bool collidedTop = false;
     bool collidedBot = false;

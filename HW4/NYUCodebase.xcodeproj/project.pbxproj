@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		103AFB3C1CA8A0B7001EAF0E /* tiles_spritesheet.png in Resources */ = {isa = PBXBuildFile; fileRef = 103AFB3B1CA8A0B7001EAF0E /* tiles_spritesheet.png */; };
 		103AFB411CAB1635001EAF0E /* spritesheet.png in Resources */ = {isa = PBXBuildFile; fileRef = 103AFB401CAB1635001EAF0E /* spritesheet.png */; };
+		10725ED51CB7180A0022F656 /* Vector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10725ED31CB7180A0022F656 /* Vector.cpp */; };
 		1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6761C7AEBAA008A9C82 /* Bullet.cpp */; };
 		1075E67A1C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */; };
 		108287D21CAB4BED0082C0FA /* file.txt in Resources */ = {isa = PBXBuildFile; fileRef = 108287D11CAB4BED0082C0FA /* file.txt */; };
@@ -33,6 +34,8 @@
 		103AFB3B1CA8A0B7001EAF0E /* tiles_spritesheet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tiles_spritesheet.png; sourceTree = "<group>"; };
 		103AFB3D1CA998E9001EAF0E /* levelData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = levelData.h; sourceTree = "<group>"; };
 		103AFB401CAB1635001EAF0E /* spritesheet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = spritesheet.png; sourceTree = "<group>"; };
+		10725ED31CB7180A0022F656 /* Vector.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Vector.cpp; sourceTree = "<group>"; };
+		10725ED41CB7180A0022F656 /* Vector.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Vector.h; sourceTree = "<group>"; };
 		1075E6751C7AEAE9008A9C82 /* Bullet.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Bullet.h; sourceTree = "<group>"; };
 		1075E6761C7AEBAA008A9C82 /* Bullet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Bullet.cpp; sourceTree = "<group>"; };
 		1075E6781C7ED5FB008A9C82 /* LoadAndDrawFuncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LoadAndDrawFuncs.cpp; sourceTree = "<group>"; };
@@ -181,6 +184,8 @@
 				10AAC2741C8B650C006009F8 /* Entity.h */,
 				10AAC2761C8CBBC2006009F8 /* MixerSound.h */,
 				103AFB3D1CA998E9001EAF0E /* levelData.h */,
+				10725ED31CB7180A0022F656 /* Vector.cpp */,
+				10725ED41CB7180A0022F656 /* Vector.h */,
 			);
 			name = Code;
 			sourceTree = "<group>";
@@ -259,6 +264,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6DEF23C31B96CC2600BCE792 /* ShaderProgram.cpp in Sources */,
+				10725ED51CB7180A0022F656 /* Vector.cpp in Sources */,
 				6DEF23C21B96CC2600BCE792 /* Matrix.cpp in Sources */,
 				6D5A86BA19AE5C710066C1FD /* main.cpp in Sources */,
 				1075E6771C7AEBAA008A9C82 /* Bullet.cpp in Sources */,

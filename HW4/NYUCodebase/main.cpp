@@ -338,6 +338,7 @@ void tileCollisionLeft(float elapsed, Matrix &modelMatrix, ShaderProgram program
     {
         if(levelData[yTilePos][xTilePosLeft] == solidTiles[j])
         {
+            cout << "does this happen?" << endl;
             vectorOfEnts[index].collidedLeft = true;
         }
     }
@@ -354,7 +355,7 @@ void tileCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram progra
     int yTilePos = -1;
     worldToTileCoordinates((vectorOfEnts[index].xPosition)+(vectorOfEnts[index].width/2),
                            vectorOfEnts[index].yPosition, &xTilePosRight, &yTilePos);
-    cout << "x tile position: " << xTilePosRight << " y tile position: " << yTilePos << endl;
+    //cout << "x tile position: " << xTilePosRight << " y tile position: " << yTilePos << endl;
     for(int j = 0; j < 5; j++)
     {
         if(levelData[yTilePos][xTilePosRight] == solidTiles[j])
@@ -365,8 +366,7 @@ void tileCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram progra
     if(vectorOfEnts[index].collidedRight)
     {
         //cout << "position of tilePosRight: " << TILE_SIZE * xTilePosRight << endl;
-        vectorOfEnts[index].xPosition -= (TILE_SIZE * xTilePosRight) -
-        (vectorOfEnts[index].xPosition + (vectorOfEnts[index].width/2))+0.000001f;
+        vectorOfEnts[index].xPosition -= (vectorOfEnts[index].xPosition + (vectorOfEnts[index].width/2))-(TILE_SIZE * xTilePosRight)+0.000001f;
         vectorOfEnts[index].xVelocity = 0.0f;
     }
 }
@@ -468,6 +468,9 @@ void initializeEntities()
     playerEntity.xPosition = 7.5f;
     playerEntity.yPosition = -3.0f;
     playerEntity.xFriction = 1.5f;
+    playerEntity.entityVector.x = playerEntity.xPosition = 7.5f;
+    playerEntity.entityVector.y = -3.0f;
+    playerEntity.entityVector.z = 0.0f;
     vectorOfEnts.push_back(playerEntity);
 }
 
@@ -647,7 +650,7 @@ bool readEntityData(ifstream &stream)
             getline(lineStream, xPosition, ',');
             getline(lineStream, yPosition, ',');
             float placeX = atoi(xPosition.c_str())/23*TILE_SIZE;
-            float placeY = atoi(yPosition.c_str())/16*-TILE_SIZE;
+            float placeY = atoi(yPosition.c_str())/23*-TILE_SIZE;
             placeEntity(type, placeX, placeY);
         }
     }
