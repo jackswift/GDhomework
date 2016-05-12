@@ -15,24 +15,55 @@ float lerp(float v0, float v1, float t)
     return (1.0-t)*v0 + t*v1;
 }
 
-bool Entity::collidesWith(Entity *entity)
+int Entity::collidesWith(Entity *entity)
 {
-    float entOneLeft = entity->xPosition-entity->width;
+
+    float entOneLeft = 0.0f;
     //x position of the right hand side of entityOne
-    float entOneRight = entity->xPosition+entity->width;
+    float entOneRight = 0.0f;
     //y position of the top of entityOne
-    float entOneTop = entity->yPosition+entity->height;
+    float entOneTop = 0.0f;
     //y position of the bottom of entityOne
-    float entOneBot = entity->yPosition-entity->height;
+    float entOneBot = 0.0f;
+    if(entity->entityType == ENTITY_ICICLE)
+    {
+        entOneLeft = entity->entityVector.x-entity->width/2;
+        //x position of the right hand side of entityOne
+        entOneRight = entity->entityVector.x+entity->width/2;
+        //y position of the top of entityOne
+        entOneTop = entity->entityVector.y+entity->height/2;
+        //y position of the bottom of entityOne
+        entOneBot = entity->entityVector.y;
+    }
+    else if(entity->entityType == ENTITY_PLATFORM)
+    {
+        //vectorOfEnts[index].entityVector.y - vectorOfEnts[index].height/2 + 0.057
+        entOneLeft = entity->entityVector.x-entity->width/2;
+        //x position of the right hand side of entityOne
+        entOneRight = entity->entityVector.x+entity->width/2;
+        //y position of the top of entityOne
+        entOneTop = entity->entityVector.y - entity->height/2 + 0.057;
+        //y position of the bottom of entityOne
+        entOneBot = entity->entityVector.y - entity->height/2;
+    }
+    else
+    {
+        entOneLeft = entity->entityVector.x-entity->width/2;
+        //x position of the right hand side of entityOne
+        entOneRight = entity->entityVector.x+entity->width/2;
+        //y position of the top of entityOne
+        entOneTop = entity->entityVector.y+entity->height/2;
+        //y position of the bottom of entityOne
+        entOneBot = entity->entityVector.y-entity->height/2;
+    }
     //x position of the left hand side of entityTwo
-    float entTwoLeft = this->xPosition-this->width;
+    float entTwoLeft = this->entityVector.x-this->width/2;
     //x position of the right hand side of entityTwo
-    float entTwoRight = this->xPosition+this->width;
+    float entTwoRight = this->entityVector.x+this->width/2;
     //y position of the top of entityTwo
-    float entTwoTop = this->yPosition+this->height;
+    float entTwoTop = this->entityVector.y+this->height/2;
     //y position of the bot of entityTwo
-    float entTwoBot = this->yPosition-this->height;
-    
+    float entTwoBot = this->entityVector.y-this->height/2;
     
     //Box to box collision detection:
     /*
@@ -42,15 +73,14 @@ bool Entity::collidesWith(Entity *entity)
      d) is R1’s right smaller than R2’s left
      */
     //The rectangles are intersecting if NONE of the above are true.
-    
     if(!(entOneBot > entTwoTop) && !(entOneTop < entTwoBot) && !(entOneLeft > entTwoRight)
        && !(entOneRight < entTwoLeft))
     {
-        return true;
+        return 1;
     }
     else
     {
-        return false;
+        return 0;
     }
 }
 //Do y updates
@@ -58,7 +88,7 @@ void Entity::UpdateX(float elapsed)
 {
     xVelocity = lerp(xVelocity, 0.0f, elapsed * xFriction);
     xVelocity += acceleration_x * elapsed;
-    xPosition += (xVelocity) * elapsed;
+    entityVector.x += (xVelocity) * elapsed;
 }
 
 //Do y updates
@@ -66,7 +96,7 @@ void Entity::UpdateY(float elapsed)
 {
     //yVelocity += acceleration_y * elapsed;
     yVelocity += gravity_y * elapsed;
-    yPosition += (yVelocity) * elapsed;
+    entityVector.y += (yVelocity) * elapsed;
 }
 void Entity::Draw(ShaderProgram program)
 {

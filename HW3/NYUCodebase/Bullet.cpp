@@ -16,7 +16,7 @@ Bullet::Bullet()
 }
 void Bullet::Update(float elapsed)
 {
-    y += yVelocity * elapsed * speed;
+    x += yVelocity * elapsed * speed;
     timeAlive += elapsed;
 }
 

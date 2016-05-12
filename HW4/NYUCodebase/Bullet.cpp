@@ -16,7 +16,7 @@ Bullet::Bullet()
 }
 void Bullet::Update(float elapsed)
 {
-    y += yVelocity * elapsed * speed;
+    x += yVelocity * elapsed * speed;
     timeAlive += elapsed;
 }
 
@@ -29,7 +29,7 @@ void Bullet::Render(ShaderProgram program, Matrix modelMatrix)
 }
 //<SubTexture name="fire09.png" x="811" y="663" width="16" height="40"/>
 
-void shootBullet(float x, float y, float yVelocity, std::vector<Bullet> &bullets, bool isPlayer)
+void shootBullet(float x, float y, float xVelocity, std::vector<Bullet> &bullets, bool isPlayer)
 {
     Bullet newBullet;
     if(isPlayer)
@@ -46,7 +46,7 @@ void shootBullet(float x, float y, float yVelocity, std::vector<Bullet> &bullets
     newBullet.y = y;
     newBullet.height = 0.03f;
     newBullet.width = 0.015f;
-    newBullet.yVelocity = yVelocity;
+    newBullet.yVelocity = xVelocity;
     if(isPlayer)
     {
         newBullet.speed = 3.5f;
@@ -62,7 +62,7 @@ void shootBullet(float x, float y, float yVelocity, std::vector<Bullet> &bullets
 
 bool shouldRemoveBullet(Bullet bullet)
 {
-    if(bullet.timeAlive > 1.8f)
+    if(bullet.timeAlive > 2.8f)
     {
         return true;
     }

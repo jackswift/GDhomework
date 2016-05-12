@@ -23,7 +23,7 @@ public:
     float height;
 };
 
-enum EntityType {ENTITY_PLAYER, ENTITY_ENEMY, ENTITY_COIN, ENTITY_BLOCK};
+enum EntityType {ENTITY_PLAYER, ENTITY_ICICLE, ENTITY_FIST, ENTITY_ROTATER, ENTITY_PLATFORM, LEVEL_GOAL, DEATH_LOLLI, TURRET};
 class Entity
 {
 public:
@@ -31,11 +31,17 @@ public:
     void UpdateX(float elapsed);
     void UpdateY(float elapsed);
     
-    bool collidesWith(Entity *entity);
+    int collidesWith(Entity *entity);
+    /*
+    void entityCollisionBot(float elapsed, Matrix &modelMatrix, ShaderProgram program, int i);
+    void entityCollisionTop(float elapsed, Matrix &modelMatrix, ShaderProgram program, int i);
+    void entityCollisionLeft(float elapsed, Matrix &modelMatrix, ShaderProgram program, int i);
+    void entityCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram program, int i);
+     */
     
-    float xPosition;
-    float yPosition;
-    float rotation = 0;
+    //float xPosition;
+    //float yPosition;
+    float rotation = 1.0;
     
     float height;
     float width;
@@ -45,8 +51,8 @@ public:
     float xFriction;
     
     
-    float acceleration_x = 0;
-    float acceleration_y = 0;
+    float acceleration_x = 0.0f;
+    float acceleration_y = 0.0f;
     float gravity_y;
     
     
@@ -64,6 +70,15 @@ public:
     bool collidedBot = false;
     bool collidedLeft = false;
     bool collidedRight = false;
+    
+    /* only for fist entity*/
+    bool waiting = false;
+    bool falling = false;
+    bool returning = false;
+    bool fallen = false;
+    float timeFallen = 0.0f;
+    
+    float startingPosition = -100.0f;
     
     //Matrix EntityModelMatrix;
     //float xAcceleration;

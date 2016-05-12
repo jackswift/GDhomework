@@ -17,6 +17,9 @@
 #include <sstream> 
 #include <string> 
 #include "levelData.h"
+#include "initializiationStuff.h"
+#include "enemyInteractions.h"
+#include "SDL_mixer.h"
 
 
 using namespace std;
@@ -32,24 +35,27 @@ using namespace std;
 #define TILE_SIZE 0.17f
 #define FIXED_TIMESTEP 0.0166666f
 #define MAX_TIMESTEPS 6
+#define NUM_OF_SOLID_TILES 9
 
 float MaxYPos = 2.0f;
 float MaxXPos = 3.55f;
 bool done = false;
 int mapWidth = -1;
 int mapHeight = -1;
-int solidTiles[5] = {121, 154, -1, -1, -1};
+int solidTiles[NUM_OF_SOLID_TILES] = {121, 128, 38, 154, 43, 152, 8, 4, 32};
 
-
+bool player1Alive = true;
+float timeDead = 0.0f;
+int currentLevel = 1;
 
 const int numFrames = 5;
 float animationElapsed = 0.0f;
 float framesPerSecond = 30.0f;
 int currentIndex = 1;
-
+float timeUntilNextLevel = 0.0f;
 
 //Gamestate enum and state
-enum GameState {STATE_MAIN_MENU, STATE_GAME_LEVEL, PLAYER_HIT};
+enum GameState {STATE_MAIN_MENU, STATE_GAME_LEVEL1, INGAME_MENU};
 int state;
 
 const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -63,7 +69,8 @@ void Setup(Matrix &projectionMatrix);
 void ProcessEvents();
 
 //UPDATE FUNCTIONS
-void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program);
+void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program, Matrix &viewMatrix);
+void UpdateGameLevel(float elapsed, Matrix &modelMatrix, ShaderProgram program, Matrix &viewMatrix);
 void tileCollisionBot(float elapsed, Matrix &modelMatrix, ShaderProgram program, int index);
 void tileCollisionTop(float elapsed, Matrix &modelMatrix, ShaderProgram program, int index);
 void tileCollisionLeft(float elapsed, Matrix &modelMatrix, ShaderProgram program, int index);
@@ -71,40 +78,40 @@ void tileCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram progra
 
 //RENDER FUNCTIONS
 void Render(ShaderProgram program, Matrix modelMatrix);
+void RenderGameLevel(ShaderProgram program, Matrix modelMatrix);
+void RenderMainMenu(ShaderProgram program, Matrix modelMatrix);
 void renderTileLevel(ShaderProgram *program);
 void setViewMatrix(ShaderProgram program, Matrix viewMatrix);
 
 //INITIALIZATION OF ENTITY VECTOR
-void initializeEntities();
-void placeEntity(string type, float xPosition, float yPosition);
+//void initializeEntities();
+//void placeEntity(string type, float xPosition, float yPosition);
 
-//SOUND FUNCTIONS
-float getAudioForTime(long numSamples);
-void myAudioCallBack(void* userData, Uint8 *stream, int len);
-float mixSamples(float A, float B);
-int loadSound(const char* soundToLoad);
-void playSound(int soundIndex, bool loop);
+void progressToNextLevel(float elapsed);
+void renderInGameMenu(ShaderProgram program, Matrix modelMatrix);
 
 //Tile stuff
-void readData();
+void readData(string file, int level);
 bool readEntityData(ifstream &stream);
-bool readLayerData(ifstream &stream);
-bool readHeader(ifstream &stream);
+bool readLayerData(ifstream &stream, int level);
+bool readHeader(ifstream &stream, int level);
 
 void worldToTileCoordinates(float worldX, float worldY, int *gridX, int *gridY);
 
 //COLLISION DETECTION (MIGHT GO INTO ENTITY FILE)
 //bool DetectCollision(Entity entityOne, Entity entityTwo);
 //bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*bullet*/);
-
+bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*pongBall*/);
 
 //Vector of entities
 std::vector<Entity> vectorOfEnts;
+std::vector<Bullet> bullets;
 
-//Vector of sounds
-std::vector<MixerSound> mixSounds;
-SDL_AudioSpec deviceSpec;
-
+//Sound files
+Mix_Chunk *jumpSound;
+Mix_Chunk *hurtSound;
+Mix_Chunk *icicleSound;
+Mix_Chunk *endOfLevel;
 
 //Num samples for sounds
 unsigned int numSamples = 0;
@@ -117,39 +124,30 @@ int main(int argc, char *argv[])
     Matrix modelMatrix;
     Matrix viewMatrix;
     Setup(projectionMatrix);
+    glDisable(GL_CULL_FACE);
     float ticks;
     float lastFrameTicks = 0.0f;
     float elapsed;
     
     ShaderProgram program(RESOURCE_FOLDER"vertex_textured.glsl", RESOURCE_FOLDER"fragment_textured.glsl");
     
-    SDL_AudioSpec requestSpec;
-    requestSpec.freq = 44100;
-    requestSpec.format = AUDIO_F32;
-    requestSpec.samples = 512;
-    requestSpec.channels = 1;
-    requestSpec.userdata = NULL;
-    requestSpec.callback = myAudioCallBack;
+    state = STATE_MAIN_MENU;
+  
+    /* SOUND STUFF*/
+    Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 4096 );
+    Mix_Music *introSong;
+    introSong = Mix_LoadMUS("Intro_Song.mp3");
     
-    //deviceSpec.userdata = (void*)this;
-    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &requestSpec, &deviceSpec, SDL_AUDIO_ALLOW_ANY_CHANGE);
     
-    SDL_PauseAudioDevice(dev, 0);
-    
-    initializeEntities();
-    
+    //Begin playing music
+    Mix_PlayMusic(introSong, -1);
     //enable blending
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    readData();
-    for(int i = 0; i < 24; i++)
-    {
-        for(int j = 0; j < 48; j++)
-        {
-            //cout << levelData[i][j] << endl;
-        }
-    }
+    readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/stage1Tiles.txt", 1);
+    readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/level2.txt", 2);
+    readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/stage3Tiles.txt", 3);
     
     while (!done) {
         
@@ -164,26 +162,29 @@ int main(int argc, char *argv[])
         program.setModelMatrix(modelMatrix);
         program.setViewMatrix(viewMatrix);
         program.setProjectionMatrix(projectionMatrix);
-        
-        
-        
+        //cout << state << endl;
+        //cout << "why this no happen main menu?" << endl;
         float fixedElapsed = elapsed;
         if(fixedElapsed > FIXED_TIMESTEP * MAX_TIMESTEPS) {
             fixedElapsed = FIXED_TIMESTEP * MAX_TIMESTEPS;
         }
         while (fixedElapsed >= FIXED_TIMESTEP ) {
             fixedElapsed -= FIXED_TIMESTEP;
-            Update(FIXED_TIMESTEP, modelMatrix, program);
+            Update(FIXED_TIMESTEP, modelMatrix, program, viewMatrix);
         }
-        Update(fixedElapsed, modelMatrix, program);
+        Update(fixedElapsed, modelMatrix, program, viewMatrix);
         
-        setViewMatrix(program, viewMatrix);
+        //setViewMatrix(program, viewMatrix);
         
         Render(program, modelMatrix);
         
         SDL_GL_SwapWindow(displayWindow);
     }
-    
+    Mix_FreeMusic(introSong);
+    Mix_FreeChunk(hurtSound);
+    Mix_FreeChunk(icicleSound);
+    Mix_FreeChunk(jumpSound);
+    Mix_FreeChunk(endOfLevel);
     SDL_Quit();
     return 0;
 }
@@ -205,6 +206,7 @@ void Setup(Matrix& projectionMatrix)
 
 void ProcessEvents()
 {
+    jumpSound = Mix_LoadWAV("jumpSound.wav");
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -212,28 +214,161 @@ void ProcessEvents()
         {
             done = true;
         }
-        if(event.type == SDL_KEYDOWN)
+        else if (event.type == SDL_KEYDOWN)
         {
-            if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
+            if(state == STATE_GAME_LEVEL1)
             {
-                //only allows jumping when the entity is touching the ground
-                if(vectorOfEnts[0].collidedBot)
+                if(event.key.keysym.scancode == SDL_SCANCODE_SPACE)
                 {
-                    vectorOfEnts[0].yVelocity = 1.2f;
+                    //only allows jumping when the entity is touching the ground
+                    if(vectorOfEnts[0].collidedBot)
+                    {
+                        Mix_PlayChannel(-1, jumpSound, 0);
+                        vectorOfEnts[0].yVelocity = 1.8f;
+                    }
                 }
-                //else do nothing
+                if(event.key.keysym.scancode == SDL_SCANCODE_M)
+                {
+                    state = INGAME_MENU;
+                    //sets state to INGAME_MENU
+                    //cout << "Does this happen?!" << endl;
+                    
+                }
+                if(event.key.keysym.scancode == SDL_SCANCODE_E)
+                {
+                    cout << "x: " <<  vectorOfEnts[0].entityVector.x << " y: " << vectorOfEnts[0].entityVector.y << endl;
+                }
+            }
+            if(state == STATE_MAIN_MENU)
+            {
+                if(event.key.keysym.scancode == SDL_SCANCODE_1)
+                {
+                    state = STATE_GAME_LEVEL1;
+                    initializeEntitiesLevel1(vectorOfEnts);
+                }
+            }
+            if(state == INGAME_MENU)
+            {
+                if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+                {
+                    state = STATE_GAME_LEVEL1;
+                }
+                if(event.key.keysym.scancode == SDL_SCANCODE_X)
+                {
+                    done = true;
+                }
+                
             }
         }
-        
     }
 }
-void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
+void progressToNextLevel(float elapsed)
 {
+    //cout << "You made it to the next level!" << endl;
+    timeUntilNextLevel += elapsed;
+    
+    if(timeUntilNextLevel > 1.5f)
+    {
+        currentLevel++;
+        if(currentLevel == 2)
+        {
+            initializeEntitiesLevel2(vectorOfEnts);
+        }
+        if(currentLevel == 3)
+        {
+            initializeEntitiesLevel1(vectorOfEnts);
+        }
+        timeUntilNextLevel = 0.0f;
+    }
+    
+}
+void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program, Matrix &viewMatrix)
+{
+    switch(state)
+    {
+        case STATE_GAME_LEVEL1:
+            UpdateGameLevel(elapsed, modelMatrix, program, viewMatrix);
+            break;
+        case STATE_MAIN_MENU:
+            //UpdateMainMenu(elapsed, modelMatrix, program);
+            break;
+    }
+}
+void collisionY(float elapsed, int index)
+{
+    hurtSound = Mix_LoadWAV("hurtSound.wav");
+    if(index != 0)
+    {
+        if(vectorOfEnts[index].entityType == ENTITY_PLATFORM)
+        {
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[index]))
+            {
+                if(vectorOfEnts[0].entityVector.y > vectorOfEnts[index].entityVector.y)
+                {
+                    float valueOfActualPlatform = vectorOfEnts[index].entityVector.y - vectorOfEnts[index].height/2 + 0.057;
+                    float penetration = fabsf((vectorOfEnts[0].entityVector.y - valueOfActualPlatform)-vectorOfEnts[0].height/2);
+                    vectorOfEnts[0].entityVector.y += penetration + 0.00001f;
+                    vectorOfEnts[0].collidedBot = true;
+                    vectorOfEnts[0].yVelocity = 0.0f;
+                    vectorOfEnts[0].xVelocity = vectorOfEnts[index].xVelocity;
+                }
+                else if(vectorOfEnts[0].entityVector.y < vectorOfEnts[index].entityVector.y)
+                {
+                    //vectorOfEnts[index].entityVector.y + (vectorOfEnts[index].height/2)
+                    //- ((-TILE_SIZE * yTilePosTop) - TILE_SIZE +0.0000001f);
+                    float valueToUse = vectorOfEnts[index].entityVector.y - vectorOfEnts[index].height/2;
+                    float penetration = fabsf((vectorOfEnts[0].entityVector.y - (valueToUse-0.057))+vectorOfEnts[0].height/2);
+                    vectorOfEnts[0].entityVector.y -= penetration + 0.00001f;
+                    vectorOfEnts[0].collidedTop = true;
+                }
+            }
+        }
+        if(vectorOfEnts[index].entityType == ENTITY_FIST)
+        {
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[index]))
+            {
+                //if entity is below threshold, dies, if above threshold, lives and stands on top of
+                //fist.
+                float botOfFist = vectorOfEnts[index].entityVector.y - vectorOfEnts[index].height/4;
+                //float botOfEnt = vectorOfEnts[0].entityVector.y - vectorOfEnts[0].height/2;
+                float topOfFist = vectorOfEnts[index].entityVector.y + vectorOfEnts[index].height/2;
+                if(vectorOfEnts[0].entityVector.y > botOfFist)
+                {
+                    float penetration = fabsf((vectorOfEnts[0].entityVector.y - (topOfFist))-vectorOfEnts[0].height/2);
+                    vectorOfEnts[0].entityVector.y += penetration + 0.0000001f;
+                    vectorOfEnts[0].collidedBot = true;
+                    vectorOfEnts[0].yVelocity = 0.0f;
+                }
+                else if(vectorOfEnts[0].entityVector.y < botOfFist)
+                {
+                    Mix_PlayChannel(-1, hurtSound, 0);
+                    player1Alive = false;
+                
+                }
+                
+            }
+        }
+    }
+}
+void collisionX(float elapsed, int index)
+{
+    if(index != 0)
+    {
+        if(vectorOfEnts[index].entityType == ENTITY_PLATFORM)
+        {
+            
+        }
+    }
+}
+void UpdateGameLevel(float elapsed, Matrix &modelMatrix, ShaderProgram program, Matrix &viewMatrix)
+{
+    setViewMatrix(program, viewMatrix);
     int animationIndex[5] = {19, 26, 27, 28, 29};
     if(keys[SDL_SCANCODE_D])
     {
         animationElapsed += elapsed;
-        vectorOfEnts[0].acceleration_x = 1.0f;
+        vectorOfEnts[0].acceleration_x = 4.0f;
+        vectorOfEnts[0].rotation = 1.0f;
         if(vectorOfEnts[0].xVelocity > 0.01f)
         {
             if(animationElapsed > 1.0/framesPerSecond)
@@ -254,19 +389,35 @@ void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
     }
     else if(keys[SDL_SCANCODE_A])
     {
-        if(vectorOfEnts[0].xPosition > 0.0f)
+        //float timeDead;
+        animationElapsed += elapsed;
+        vectorOfEnts[0].acceleration_x = -4.0f;
+        vectorOfEnts[0].rotation = -1.0f;
+        if(vectorOfEnts[0].xVelocity < -0.01f)
         {
-            vectorOfEnts[0].acceleration_x = -1.0f;
+            if(animationElapsed > 1.0/framesPerSecond)
+            {
+                currentIndex++;
+                animationElapsed = 0.0f;
+                if(currentIndex > numFrames-1)
+                {
+                    currentIndex = 1;
+                }
+            }
+            vectorOfEnts[0].setSprite(SPRITE_COUNT_Y, SPRITE_COUNT_X, animationIndex[currentIndex], 0.17f);
         }
-        else
+        else if (vectorOfEnts[0].xVelocity == 0.0f)
         {
-            vectorOfEnts[0].xVelocity = 0.0f;
+            vectorOfEnts[0].setSprite(SPRITE_COUNT_Y, SPRITE_COUNT_X, animationIndex[0], 0.17f);
         }
+        //vectorOfEnts[0].rotation = -1.0f;
     }
+    /*
     if(vectorOfEnts[0].acceleration_x <= 0.0f)
     {
         vectorOfEnts[0].setSprite(SPRITE_COUNT_Y, SPRITE_COUNT_X, animationIndex[0], 0.17f);
     }
+     */
     for(int i = 0; i < vectorOfEnts.size(); i++)
     {
         if(!vectorOfEnts[i].isStatic)
@@ -278,31 +429,247 @@ void Update(float elapsed, Matrix &modelMatrix, ShaderProgram program)
             vectorOfEnts[i].UpdateY(elapsed);
             tileCollisionBot(elapsed, modelMatrix, program, i);
             tileCollisionTop(elapsed, modelMatrix, program, i);
+            collisionY(elapsed, i);
             vectorOfEnts[i].UpdateX(elapsed);
-            //tileCollisionLeft(elapsed, modelMatrix, program, i);
+            tileCollisionLeft(elapsed, modelMatrix, program, i);
             tileCollisionRight(elapsed, modelMatrix, program, i);
         }
     }
+    for(int i = 1; i < vectorOfEnts.size(); i++)
+    {
+        if(vectorOfEnts[i].entityType == ENTITY_ICICLE)
+        {
+            float distanceBetween = vectorOfEnts[0].entityVector.x - vectorOfEnts[i].entityVector.x;
+            if(vectorOfEnts[0].entityVector.y < vectorOfEnts[i].entityVector.y)
+            {
+                if(distanceBetween < 0.1)
+                {
+                    if((vectorOfEnts[0].entityVector.x+vectorOfEnts[0].width/2) - (vectorOfEnts[i].entityVector.x-vectorOfEnts[i].width/2-0.05) > 0)
+                    {
+                        icicleFalling(vectorOfEnts[i]);
+                    }
+                }
+                else if(distanceBetween > 0.1)
+                {
+                    if((vectorOfEnts[0].entityVector.x-vectorOfEnts[0].width/2) - (vectorOfEnts[i].entityVector.x+vectorOfEnts[i].width/2) < 0)
+                    {
+                        icicleFalling(vectorOfEnts[i]);
+                    }
+                }
+            }
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[i]))
+            {
+                //icicleSound = Mix_LoadWAV("icicleFalling.wav");
+                //Mix_PlayChannel(-1, icicleSound, 0);
+                hurtSound = Mix_LoadWAV("hurtSound.wav");
+                Mix_PlayChannel(-1, hurtSound, 0);
+                player1Alive = false;
+            }
+        }
+        else if(vectorOfEnts[i].entityType == ENTITY_FIST)
+        {
+            float distanceBetweenX = vectorOfEnts[0].entityVector.x - vectorOfEnts[i].entityVector.x;
+            float distanceBetweenY = vectorOfEnts[0].entityVector.y - vectorOfEnts[i].entityVector.y;
+            distanceBetweenY = -distanceBetweenY;
+            
+            //mock distance between first entity and fist = 3.485 - 2.972 =    0.513
+            if(vectorOfEnts[i].waiting)
+            {
+                //cout << "Hey look!" << endl;
+                if(distanceBetweenY < 0.6f && distanceBetweenY > 0.1f)
+                {
+                    //cout << "Hey look!" << endl;
+                    if(distanceBetweenX < 0.01)
+                    {
+                        if((vectorOfEnts[0].entityVector.x+vectorOfEnts[0].width/2) - (vectorOfEnts[i].entityVector.x-vectorOfEnts[i].width/2) > 0)
+                        {
+                            //cout << "does this happen?" << endl;
+                            fistFalling(vectorOfEnts[i]); //take care of setting appropriate bools here
+                        }
+                    }
+                    else if(distanceBetweenX > 0.01)
+                    {
+                        if((vectorOfEnts[0].entityVector.x-vectorOfEnts[0].width/2) - (vectorOfEnts[i].entityVector.x+vectorOfEnts[i].width/2+0.1) < 0)
+                        {
+                            //cout << "does this happen?" << endl;
+                            fistFalling(vectorOfEnts[i]);
+                        }
+                    }
+                }
+            }
+            else if(vectorOfEnts[i].fallen)
+            {
+                vectorOfEnts[i].timeFallen += elapsed;
+                //cout << vectorOfEnts[i].timeFallen << endl;
+                if(vectorOfEnts[i].timeFallen > 1.3)
+                {
+                    fistReturning(vectorOfEnts[i]);
+                }
+            }
+            else if(vectorOfEnts[i].returning)
+            {
+                //don't think i do anything here...
+                //cout << "Still returning..." << endl;
+                if(vectorOfEnts[i].entityVector.y > vectorOfEnts[i].startingPosition)
+                {
+                    //cout << "does this happen?" << endl;
+                    vectorOfEnts[i].waiting = true;
+                    vectorOfEnts[i].returning = false;
+                    vectorOfEnts[i].falling = false;
+                    vectorOfEnts[i].fallen = false;
+                    vectorOfEnts[i].yVelocity = 0.0f;
+                }
+            }
+            /*
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[i]) == 1)
+            {
+               
+            }
+             */
+        }
+        else if(vectorOfEnts[i].entityType == ENTITY_PLATFORM)
+        {
+            if(vectorOfEnts[i].falling == true)
+            {
+                vectorOfEnts[i].xVelocity = -0.8f;
+            }
+            else if(vectorOfEnts[i].returning == true)
+            {
+                vectorOfEnts[i].xVelocity = 0.8f;
+            }
+            if(vectorOfEnts[i].startingPosition - vectorOfEnts[i].entityVector.x >= 4.8f)
+            {
+                vectorOfEnts[i].returning = true;
+                vectorOfEnts[i].falling = false;
+            }
+            else if(vectorOfEnts[i].startingPosition <= vectorOfEnts[i].entityVector.x)
+            {
+                vectorOfEnts[i].falling = true;
+                vectorOfEnts[i].returning = false;
+            }
+        }
+        else if(vectorOfEnts[i].entityType == LEVEL_GOAL)
+        {
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[i]))
+            {
+                endOfLevel = Mix_LoadWAV("endOfLevel.wav");
+                Mix_PlayChannel(-1, endOfLevel, 0);
+                progressToNextLevel(elapsed);
+            }
+        }
+        else if(vectorOfEnts[i].entityType == DEATH_LOLLI)
+        {
+            if(vectorOfEnts[0].collidesWith(&vectorOfEnts[i]))
+            {
+                player1Alive = false;
+            }
+        }
+        else if(vectorOfEnts[i].entityType == TURRET)
+        {
+            vectorOfEnts[i].timeFallen += elapsed;
+            //cout << vectorOfEnts[i].timeFallen << endl;
+            if(vectorOfEnts[i].timeFallen > 1.8f)
+            {
+                shootBullet(vectorOfEnts[i].entityVector.x, vectorOfEnts[i].entityVector.y, vectorOfEnts[i].rotation, bullets, false);
+                vectorOfEnts[i].timeFallen = 0.0f;
+            }
+        }
+    }
+    bullets.erase(std::remove_if(bullets.begin(), bullets.end(), shouldRemoveBullet), bullets.end());
+    for(int i = 0; i < bullets.size(); i++)
+    {
+        bullets[i].Update(elapsed);
+    }
+    for(int i = 0; i < bullets.size(); i++)
+    {
+        if(DetectCollisionBullet(vectorOfEnts[0], bullets[i]))
+        {
+            //cout << "Does this happen?" << endl;
+            player1Alive = false;
+            bullets.clear();
+        }
+    }
     vectorOfEnts[0].acceleration_x = 0.0f;
+    if(!player1Alive)
+    {
+        vectorOfEnts[0].entityVector.x = 0.0f;
+        vectorOfEnts[0].entityVector.y = 0.0f;
+        timeDead+=elapsed;
+        if(timeDead > 2.0f)
+        {
+            player1Alive = true;
+            resetGame(currentLevel, vectorOfEnts);
+            timeDead = 0.0f;
+        }
+    }
+    if(vectorOfEnts[0].xVelocity > 4.0f)
+    {
+        vectorOfEnts[0].xVelocity = 4.0f;
+    }
+    else if(vectorOfEnts[0].xVelocity < -4.0f)
+    {
+        vectorOfEnts[0].xVelocity = -4.0f;
+    }
 }
 void tileCollisionBot(float elapsed, Matrix &modelMatrix, ShaderProgram program, int index)
 {
     int xTilePos = -1;
     int yTilePosBot = -1;
-    worldToTileCoordinates((vectorOfEnts[index].xPosition),
-                           vectorOfEnts[index].yPosition-(vectorOfEnts[index].height/2),
-                           &xTilePos, &yTilePosBot);
-    for(int j = 0; j < 5; j++)
+    float yValueToUse = 0.0f;
+    if(vectorOfEnts[index].entityType == ENTITY_PLAYER || vectorOfEnts[index].entityType == ENTITY_FIST)
     {
-        if(levelData[yTilePosBot][xTilePos] == solidTiles[j])
+        yValueToUse = vectorOfEnts[index].entityVector.y-(vectorOfEnts[index].height/2);
+    }
+    else if(vectorOfEnts[index].entityType == ENTITY_ICICLE)
+    {
+        yValueToUse = vectorOfEnts[index].entityVector.y;
+    }
+
+    worldToTileCoordinates((vectorOfEnts[index].entityVector.x), yValueToUse,
+                            &xTilePos, &yTilePosBot);
+    
+    for(int j = 0; j < NUM_OF_SOLID_TILES; j++)
+    {
+        if(currentLevel == 1)
         {
-            vectorOfEnts[index].collidedBot = true;
+            if(levelData[yTilePosBot][xTilePos] == solidTiles[j])
+            {
+                vectorOfEnts[index].collidedBot = true;
+                if(vectorOfEnts[index].entityType == ENTITY_FIST)
+                {
+                    vectorOfEnts[index].fallen = true;
+                    //cout << "I AM FALLEN :(!" << endl;
+                }
+            }
+        }
+        if(currentLevel == 2)
+        {
+            if(level2Data[yTilePosBot][xTilePos] == solidTiles[j])
+            {
+                vectorOfEnts[index].collidedBot = true;
+                if(vectorOfEnts[index].entityType == ENTITY_FIST)
+                {
+                    vectorOfEnts[index].fallen = true;
+                    //cout << "I AM FALLEN :(!" << endl;
+                }
+            }
+        }
+        if(currentLevel == 3)
+        {
+            if(level3Data[yTilePosBot][xTilePos] == solidTiles[j])
+            {
+                vectorOfEnts[index].collidedBot = true;
+                if(vectorOfEnts[index].entityType == ENTITY_FIST)
+                {
+                    vectorOfEnts[index].fallen = true;
+                    //cout << "I AM FALLEN :(!" << endl;
+                }
+            }
         }
     }
     if(vectorOfEnts[index].collidedBot)
     {
-        vectorOfEnts[index].yPosition -= (vectorOfEnts[index].yPosition -
-                                          (vectorOfEnts[index].height/2) - (-TILE_SIZE * yTilePosBot))+0.0001f;
+        vectorOfEnts[index].entityVector.y -= (yValueToUse - (-TILE_SIZE * yTilePosBot))+0.0001f;
         vectorOfEnts[index].yVelocity = 0.0f;
     }
 }
@@ -310,42 +677,88 @@ void tileCollisionTop(float elapsed, Matrix &modelMatrix, ShaderProgram program,
 {
     int xTilePos = -1;
     int yTilePosTop = -1;
-    worldToTileCoordinates((vectorOfEnts[index].xPosition),
-                           (vectorOfEnts[index].yPosition)+(vectorOfEnts[index].height/2),
+    worldToTileCoordinates((vectorOfEnts[index].entityVector.x),
+                           (vectorOfEnts[index].entityVector.y)+(vectorOfEnts[index].height/2),
                            &xTilePos, &yTilePosTop);
-    for(int j = 0; j < 5; j++)
+    for(int j = 0; j < NUM_OF_SOLID_TILES; j++)
     {
-        if(levelData[yTilePosTop][xTilePos] == solidTiles[j])
+        if(currentLevel == 1)
         {
-            vectorOfEnts[index].collidedTop = true;
+            if(levelData[yTilePosTop][xTilePos] == solidTiles[j])
+            {
+                //cout << "pls no\n";
+                vectorOfEnts[index].collidedTop = true;
+            }
+        }
+        if(currentLevel == 2)
+        {
+            if(level2Data[yTilePosTop][xTilePos] == solidTiles[j])
+            {
+                //cout << "pls no\n";
+                vectorOfEnts[index].collidedTop = true;
+            }
+        }
+        if(currentLevel == 3)
+        {
+            if(level3Data[yTilePosTop][xTilePos] == solidTiles[j])
+            {
+                //cout << "pls no\n";
+                vectorOfEnts[index].collidedTop = true;
+            }
         }
     }
     if(vectorOfEnts[index].collidedTop)
     {
-        vectorOfEnts[index].yPosition -= vectorOfEnts[index].yPosition + (vectorOfEnts[index].height/2)
+        if(vectorOfEnts[index].entityType == ENTITY_PLAYER)
+        {
+            vectorOfEnts[index].entityVector.y -= vectorOfEnts[index].entityVector.y + (vectorOfEnts[index].height/2)
          - ((-TILE_SIZE * yTilePosTop) - TILE_SIZE +0.0000001f);
-        vectorOfEnts[index].yVelocity = 0.0f;
+            vectorOfEnts[index].yVelocity = 0.0f;
+        }
     }
 }
 void tileCollisionLeft(float elapsed, Matrix &modelMatrix, ShaderProgram program, int index)
 {
     int xTilePosLeft = -1;
     int yTilePos = -1;
-    worldToTileCoordinates((vectorOfEnts[index].xPosition)-(vectorOfEnts[index].width/2),
-                           vectorOfEnts[index].yPosition, &xTilePosLeft, &yTilePos);
+    worldToTileCoordinates((vectorOfEnts[index].entityVector.x)-(vectorOfEnts[index].width/2),
+                           vectorOfEnts[index].entityVector.y, &xTilePosLeft, &yTilePos);
     //cout << "x tile position: " << xTilePos << " y tile position: " << yTilePosBot << endl;
-    for(int j = 0; j < 5; j++)
+    for(int j = 0; j < NUM_OF_SOLID_TILES; j++)
     {
-        if(levelData[yTilePos][xTilePosLeft] == solidTiles[j])
+        if(vectorOfEnts[index].entityType == ENTITY_PLAYER)
         {
-            cout << "does this happen?" << endl;
-            vectorOfEnts[index].collidedLeft = true;
+            if(currentLevel == 1)
+            {
+                if(levelData[yTilePos][xTilePosLeft] == solidTiles[j])
+                {
+                    //cout << "does this happen?" << endl;
+                    vectorOfEnts[index].collidedLeft = true;
+                }
+            }
+            if(currentLevel == 2)
+            {
+                if(level2Data[yTilePos][xTilePosLeft] == solidTiles[j])
+                {
+                    //cout << "does this happen?" << endl;
+                    vectorOfEnts[index].collidedLeft = true;
+                }
+            }
+            if(currentLevel == 3)
+            {
+                if(level3Data[yTilePos][xTilePosLeft] == solidTiles[j])
+                {
+                    //cout << "does this happen?" << endl;
+                    vectorOfEnts[index].collidedLeft = true;
+                }
+            }
         }
     }
     if(vectorOfEnts[index].collidedLeft)
     {
-        vectorOfEnts[index].xPosition -= (vectorOfEnts[index].xPosition +
-                                          (vectorOfEnts[index].width/2) - (TILE_SIZE * xTilePosLeft))+0.0000001f;
+        
+        vectorOfEnts[index].entityVector.x -= (vectorOfEnts[index].entityVector.x -
+                                          vectorOfEnts[index].width/2) - (TILE_SIZE * xTilePosLeft+TILE_SIZE)+0.0000001f;
         vectorOfEnts[index].xVelocity = 0.0f;
     }
 }
@@ -353,20 +766,43 @@ void tileCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram progra
 {
     int xTilePosRight = -1;
     int yTilePos = -1;
-    worldToTileCoordinates((vectorOfEnts[index].xPosition)+(vectorOfEnts[index].width/2),
-                           vectorOfEnts[index].yPosition, &xTilePosRight, &yTilePos);
+    worldToTileCoordinates((vectorOfEnts[index].entityVector.x)+(vectorOfEnts[index].width/2),
+                           vectorOfEnts[index].entityVector.y, &xTilePosRight, &yTilePos);
     //cout << "x tile position: " << xTilePosRight << " y tile position: " << yTilePos << endl;
-    for(int j = 0; j < 5; j++)
+    for(int j = 0; j < NUM_OF_SOLID_TILES; j++)
     {
-        if(levelData[yTilePos][xTilePosRight] == solidTiles[j])
+        if(vectorOfEnts[index].entityType == ENTITY_PLAYER)
         {
-            vectorOfEnts[index].collidedRight = true;
+            if(currentLevel == 1)
+            {
+                if(levelData[yTilePos][xTilePosRight] == solidTiles[j])
+                {
+                    //cout << "Yo wassup witchu?" <<endl;
+                    vectorOfEnts[index].collidedRight = true;
+                }
+            }
+            if(currentLevel == 2)
+            {
+                if(level2Data[yTilePos][xTilePosRight] == solidTiles[j])
+                {
+                    //cout << "Yo wassup witchu?" <<endl;
+                    vectorOfEnts[index].collidedRight = true;
+                }
+            }
+            if(currentLevel == 3)
+            {
+                if(level3Data[yTilePos][xTilePosRight] == solidTiles[j])
+                {
+                    //cout << "Yo wassup witchu?" <<endl;
+                    vectorOfEnts[index].collidedRight = true;
+                }
+            }
         }
     }
     if(vectorOfEnts[index].collidedRight)
     {
         //cout << "position of tilePosRight: " << TILE_SIZE * xTilePosRight << endl;
-        vectorOfEnts[index].xPosition -= (vectorOfEnts[index].xPosition + (vectorOfEnts[index].width/2))-(TILE_SIZE * xTilePosRight)+0.000001f;
+        vectorOfEnts[index].entityVector.x -= (vectorOfEnts[index].entityVector.x + (vectorOfEnts[index].width/2))-(TILE_SIZE * xTilePosRight)+0.000001f;
         vectorOfEnts[index].xVelocity = 0.0f;
     }
 }
@@ -374,25 +810,30 @@ void tileCollisionRight(float elapsed, Matrix &modelMatrix, ShaderProgram progra
 void setViewMatrix(ShaderProgram program, Matrix viewMatrix)
 {
     viewMatrix.identity();
-    float maxLowest = -3.4f;
-    float maxLeftMost = 3.5f;
+    /*
+    float maxLowest = -3.0f;
+    float maxLeftMost = 3.6f;
+    float maxRightMost = 0.0f;
+    float maxHighest = 0.0f;
     
-    if(vectorOfEnts[0].yPosition > maxLowest && vectorOfEnts[0].xPosition > maxLeftMost)
+    if(vectorOfEnts[0].entityVector.y > maxLowest && vectorOfEnts[0].entityVector.x > maxLeftMost)
     {
-        viewMatrix.Translate(-vectorOfEnts[0].xPosition, -vectorOfEnts[0].yPosition, 0.0f);
+        viewMatrix.Translate(-vectorOfEnts[0].entityVector.x, -vectorOfEnts[0].entityVector.y, 0.0f);
     }
-    else if(vectorOfEnts[0].yPosition < maxLowest && vectorOfEnts[0].xPosition > maxLeftMost)
+    else if(vectorOfEnts[0].entityVector.y < maxLowest && vectorOfEnts[0].entityVector.x > maxLeftMost)
     {
-        viewMatrix.Translate(-vectorOfEnts[0].xPosition, -maxLowest, 0.0f);
+        viewMatrix.Translate(-vectorOfEnts[0].entityVector.x, -maxLowest, 0.0f);
     }
-    else if(vectorOfEnts[0].yPosition > maxLowest && -vectorOfEnts[0].xPosition < 3.5f)
+    else if(vectorOfEnts[0].entityVector.y > maxLowest && -vectorOfEnts[0].entityVector.x < 3.5f)
     {
-        viewMatrix.Translate(-maxLeftMost, -vectorOfEnts[0].yPosition, 0.0f);
+        viewMatrix.Translate(-maxLeftMost, -vectorOfEnts[0].entityVector.y, 0.0f);
     }
-    else if(vectorOfEnts[0].yPosition < maxLowest && vectorOfEnts[0].xPosition < maxLeftMost)
+    else if(vectorOfEnts[0].entityVector.y < maxLowest && vectorOfEnts[0].entityVector.x < maxLeftMost)
     {
         viewMatrix.Translate(-maxLeftMost, -maxLowest, 0.0f);
     }
+     */
+    viewMatrix.Translate(-3.64f, 3.26f, 0.0f);
     program.setViewMatrix(viewMatrix);
 
 }
@@ -401,42 +842,105 @@ void worldToTileCoordinates(float worldX, float worldY, int *gridX, int *gridY)
     *gridX = (int)(worldX / TILE_SIZE);
     *gridY = (int)(-worldY / TILE_SIZE);
 }
-void Render(ShaderProgram program, Matrix modelMatrix)
+void RenderGameLevel(ShaderProgram program, Matrix modelMatrix)
 {
-    /*
-    switch(state)
-    {
-        case STATE_GAME_LEVEL:
-            RenderGameLevel(program, modelMatrix);
-            break;
-        case STATE_MAIN_MENU:
-            RenderMainMenu(program, modelMatrix);
-            break;
-        case PLAYER_HIT:
-            RenderPlayerHit(program, modelMatrix);
-            break;
-    }
-     */
-    /*
-    for(int i = 0; i < vectorOfEnts.size(); i++)
-    {
-        modelMatrix.identity();
-        modelMatrix.Translate(vectorOfEnts[i].xPosition, vectorOfEnts[i].yPosition, 0.0f);
-        program.setModelMatrix(modelMatrix);
-        vectorOfEnts[i].Draw(program);
-    }
-     */
     modelMatrix.identity();
     program.setModelMatrix(modelMatrix);
     renderTileLevel(&program);
     for(int i = 0; i < vectorOfEnts.size(); i++)
     {
         modelMatrix.identity();
-        modelMatrix.Translate(vectorOfEnts[i].xPosition, (vectorOfEnts[i].yPosition), 0.0f);
+        modelMatrix.Translate(vectorOfEnts[i].entityVector.x, vectorOfEnts[i].entityVector.y, 0.0f);
+        modelMatrix.Scale(vectorOfEnts[i].rotation, 1.0f, 0.0f);
         program.setModelMatrix(modelMatrix);
         vectorOfEnts[i].Draw(program);
     }
+    for(int i = 0; i < bullets.size(); i++)
+    {
+        bullets[i].Render(program, modelMatrix);
+    }
     
+}
+void Render(ShaderProgram program, Matrix modelMatrix)
+{
+    switch(state)
+    {
+        case STATE_GAME_LEVEL1:
+            RenderGameLevel(program, modelMatrix);
+            break;
+        case STATE_MAIN_MENU:
+            RenderMainMenu(program, modelMatrix);
+            break;
+        case INGAME_MENU:
+            renderInGameMenu(program, modelMatrix);
+    }
+}
+void RenderMainMenu(ShaderProgram program, Matrix modelMatrix)
+{
+    //Background of game: (purple with stars)
+    GLuint fontSheet = LoadTexture("font1.png", false);
+    
+    std::string text = "Try not to die HARDCORE!!";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*8.5f, 1.7f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.35f, -0.1f);
+    
+    std::string mainMenu = "Main Menu";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.3f*4.0f, 1.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, mainMenu, 0.38f, -0.1f);
+    
+    std::string playerOne = "Press 1 to play!";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.3f*5.6f, -0.05f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, playerOne, 0.25f, -0.1f);
+    /*
+    std::string playerTwo = "Press 2 for two player";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.3f*5.55f, -0.8f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, playerTwo, 0.25f, -0.1f);
+     */
+    
+}
+void renderInGameMenu(ShaderProgram program, Matrix modelMatrix)
+{
+    //cout << "AM I HERE?!" << endl;
+    GLuint fontSheet = LoadTexture("font1.png", false);
+    std::string text = "You're doing great!!";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*8.5f, 1.7f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, text, 0.35f, -0.1f);
+    
+    std::string levelDisplay = "You're on level: ";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*8.5f, 1.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, levelDisplay, 0.35f, -0.1f);
+    
+    std::ostringstream currentLevelConv;
+    currentLevelConv << currentLevel;
+    modelMatrix.identity();
+    modelMatrix.Translate(1.8f, 1.0f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, currentLevelConv.str(), 0.35f, -0.1f);
+    
+    std::string quitOption = "If you would like to quit:";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*8.8f, -0.5f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, quitOption, 0.35f, -0.1f);
+    
+    std::string quitOption1 = "Press x!";
+    modelMatrix.identity();
+    modelMatrix.Translate(-0.33f*4.4f, -0.8f, 0.0f);
+    program.setModelMatrix(modelMatrix);
+    DrawText(&program, fontSheet, quitOption1, 0.35f, -0.1f);
+   
 }
 void setBackgroundColorAndClear()
 {
@@ -444,123 +948,9 @@ void setBackgroundColorAndClear()
     glClear(GL_COLOR_BUFFER_BIT);
     
 }
-
-void initializeEntities()
-{
-    int index = 19;
-    float u = (float)(((int)index) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
-    float v = (float)(((int)index) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
-    float spriteWidth = 1.0/(float)SPRITE_COUNT_X;
-    float spriteHeight = 1.0/(float)SPRITE_COUNT_Y;
-    GLuint playerTexture = LoadTexture("spritesheet.png", false);
-    Entity playerEntity;
-    playerEntity.entityType = ENTITY_PLAYER;
-    playerEntity.EntityTexture = playerTexture;
-    playerEntity.xVelocity = 0;
-    playerEntity.usesSprite = true;
-    playerEntity.sprite = SheetSprite(playerTexture, u, v, spriteWidth, spriteHeight, 0.17f);
-    playerEntity.height = 0.17f;
-    playerEntity.width = 0.17f;
-    playerEntity.isStatic = false;
-    playerEntity.gravity_y = -1.2f;
-    playerEntity.acceleration_x = 0.0f;
-    playerEntity.acceleration_y = 0.0f;
-    playerEntity.xPosition = 7.5f;
-    playerEntity.yPosition = -3.0f;
-    playerEntity.xFriction = 1.5f;
-    playerEntity.entityVector.x = playerEntity.xPosition = 7.5f;
-    playerEntity.entityVector.y = -3.0f;
-    playerEntity.entityVector.z = 0.0f;
-    vectorOfEnts.push_back(playerEntity);
-}
-
-float getAudioForTime(long numSamples)
-{
-    double elapsed = ((double)numSamples)/44100.0;
-    return sin(elapsed * 2.0 * M_PI * 350.0);
-}
-int loadSound(const char* soundToLoad)
-{
-    Uint8 *buffer;
-    SDL_AudioSpec spec;
-    Uint32 bufferSize;
-    if(SDL_LoadWAV(soundToLoad, &spec, &buffer, &bufferSize) == NULL)
-    {
-        return -1;
-    }
-    SDL_AudioCVT cvt;
-    if(SDL_BuildAudioCVT(&cvt, spec.format, spec.channels, spec.freq, deviceSpec.format, deviceSpec.channels, deviceSpec.freq) == -1) {
-        return -1;
-    }
-    cvt.len = bufferSize;
-    cvt.buf = new Uint8[bufferSize * cvt.len_mult];
-    
-    memcpy(cvt.buf, buffer, bufferSize);
-    
-    SDL_ConvertAudio(&cvt);
-    SDL_FreeWAV(buffer);
-    
-    MixerSound sound;
-    sound.buffer = cvt.buf;
-    sound.length = cvt.len_cvt;
-    sound.loaded = true;
-    sound.offset = 0;
-    sound.format = deviceSpec.format;
-    sound.volume = 1.0;
-    sound.playing = false;
-    mixSounds.push_back(sound);
-    return mixSounds.size()-1;
-}
-void myAudioCallBack(void* userData, Uint8 *stream, int len)
-{
-    memset(stream, 0, len);
-    
-    for(int i = 0; i < mixSounds.size(); i++)
-    {
-        MixerSound *sound = &mixSounds[i];
-        if(sound->loaded && sound->playing)
-        {
-            for(int s = 0; s < len/4; s++)
-            {
-                float *sourceBuffer = (float*)(sound->buffer + sound->offset);
-                ((float*)stream)[s] = mixSamples(((float*)stream)[s], (sourceBuffer[s]*sound->volume));
-            }
-            sound->offset += len;
-            if(sound->offset >= sound->length - len)
-            {
-                if(sound->loop)
-                {
-                    sound->offset = 0;
-                }
-                else{
-                    sound->playing = false;
-                }
-            }
-        }
-    }
-}
-float mixSamples(float A, float B) {
-    if (A < 0 && B < 0 ) {
-        return  (A + B) - (A * B)/-1.0;
-    } else if (A > 0 && B > 0 ) {
-        return (A + B) - (A * B)/1.0;
-    } else {
-        return A + B;
-    }
-}
-void playSound(int soundIndex, bool loop)
-{
-    if(soundIndex >= 0 && soundIndex < mixSounds.size())
-    {
-        mixSounds[soundIndex].playing = true;
-        mixSounds[soundIndex].offset = 0;
-        mixSounds[soundIndex].loop = loop;
-    }
-}
-bool readHeader(ifstream &stream)
+bool readHeader(ifstream &stream, int level)
 {
     string line;
-    
     while(getline(stream, line))
     {
         if(line == "") { break; }
@@ -585,15 +975,34 @@ bool readHeader(ifstream &stream)
     else
     {
         // allocate our map data
-        levelData = new unsigned int*[mapHeight];
-        for(int i = 0; i < mapHeight; ++i)
+        if(level == 1)
         {
-            levelData[i] = new unsigned int[mapWidth];
+            levelData = new unsigned int*[mapHeight];
+            for(int i = 0; i < mapHeight; ++i)
+            {
+                levelData[i] = new unsigned int[mapWidth];
+            }
+        }
+        if(level == 2)
+        {
+            level2Data = new unsigned int*[mapHeight];
+            for(int i = 0; i < mapHeight; ++i)
+            {
+                level2Data[i] = new unsigned int[mapWidth];
+            }
+        }
+        if(level == 3)
+        {
+            level3Data = new unsigned int*[mapHeight];
+            for(int i = 0; i < mapHeight; ++i)
+            {
+                level3Data[i] = new unsigned int[mapWidth];
+            }
         }
         return true;
     }
 }
-bool readLayerData(ifstream &stream) {
+bool readLayerData(ifstream &stream, int level) {
     string line;
     while(getline(stream, line)) {
         if(line == "") { break; }
@@ -613,12 +1022,35 @@ bool readLayerData(ifstream &stream) {
                     if(val > 0)
                     {
                         // be careful, the tiles in this format are indexed from 1 not 0
-                        levelData[y][x] = val-1;
+                        if(level == 1)
+                        {
+                            levelData[y][x] = val-1;
+                        }
+                        if(level == 2)
+                        {
+                            level2Data[y][x] = val-1;
+                        }
+                        if(level == 3)
+                        {
+                            level3Data[y][x] = val-1;
+                        }
                         //cout << levelData[y][x] << endl;
                     }
                     else
                     {
-                        levelData[y][x] = 0;
+                        //levelData[y][x] = 868;
+                        if(level == 1)
+                        {
+                            levelData[y][x] = 868;
+                        }
+                        if(level == 2)
+                        {
+                            level2Data[y][x] = 868;
+                        }
+                        if(level == 3)
+                        {
+                            level3Data[y][x] = 868;
+                        }
                         //cout << levelData[y][x] << endl;
                     }
                 }
@@ -649,31 +1081,27 @@ bool readEntityData(ifstream &stream)
             string xPosition, yPosition;
             getline(lineStream, xPosition, ',');
             getline(lineStream, yPosition, ',');
-            float placeX = atoi(xPosition.c_str())/23*TILE_SIZE;
-            float placeY = atoi(yPosition.c_str())/23*-TILE_SIZE;
-            placeEntity(type, placeX, placeY);
+           // float placeX = atoi(xPosition.c_str())/23*TILE_SIZE;
+            //float placeY = atoi(yPosition.c_str())/23*-TILE_SIZE;
+            //placeEntity(type, placeX, placeY);
         }
     }
     return true;
 }
-void placeEntity(string type, float xPosition, float yPosition)
+void readData(string file, int level)
 {
-    
-}
-void readData()
-{
-    ifstream infile("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/file.txt");
+    ifstream infile(file);
     string line;
     while (getline(infile, line)) {
         if(line == "[header]") {
-            if(!readHeader(infile))
+            if(!readHeader(infile, level))
             {
                 return;
             }
         } else if(line == "[layer]") {
-            readLayerData(infile);
-        } else if(line == "[ObjectsLayer]") {
-            readEntityData(infile);
+            readLayerData(infile, level);
+        } else if(line == "[ObjectLayer]") {
+            //readEntityData(infile);
         }
     }
 }
@@ -683,14 +1111,27 @@ void renderTileLevel(ShaderProgram *program)
     float border = 3.0f/692.0f;
     vector<float> vertexData;
     vector<float> texCoordData;
-    
+    float u = 0.0f;
+    float v = 0.0f;
     for(int y=0; y < mapHeight; y++)
     {
         for(int x=0; x < mapWidth; x++)
         {
-            /*
-            float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
-            float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
+            if(currentLevel == 1)
+            {
+                u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
+                v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
+            }
+            if(currentLevel == 2)
+            {
+                u = (float)(((int)level2Data[y][x]) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
+                v = (float)(((int)level2Data[y][x]) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
+            }
+            if(currentLevel == 3)
+            {
+                u = (float)(((int)level3Data[y][x]) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
+                v = (float)(((int)level3Data[y][x]) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
+            }
             float spriteWidth = (1.0f/(float)SPRITE_COUNT_X)-border*2;
             float spriteHeight = (1.0f/(float)SPRITE_COUNT_Y)-border*2;
             vertexData.insert(vertexData.end(),
@@ -711,34 +1152,6 @@ void renderTileLevel(ShaderProgram *program)
                                     u+spriteWidth+border, v+(spriteHeight)+border,
                                     u+spriteWidth+border, v+border
                                 });
-             */
-            
-            if(levelData[y][x] != 0)
-            {
-                float u = (float)(((int)levelData[y][x]) % SPRITE_COUNT_X) / (float) SPRITE_COUNT_X;
-                float v = (float)(((int)levelData[y][x]) / SPRITE_COUNT_X) / (float) SPRITE_COUNT_Y;
-                float spriteWidth = (1.0f/(float)SPRITE_COUNT_X)-border*2;
-                float spriteHeight = (1.0f/(float)SPRITE_COUNT_Y)-border*2;
-                vertexData.insert(vertexData.end(),
-                {
-                    TILE_SIZE * x, -TILE_SIZE * y,
-                    TILE_SIZE * x, (-TILE_SIZE * y)-TILE_SIZE,
-                    (TILE_SIZE * x)+TILE_SIZE, (-TILE_SIZE * y)-TILE_SIZE,
-                    TILE_SIZE * x, -TILE_SIZE * y,
-                    (TILE_SIZE * x)+TILE_SIZE, (-TILE_SIZE * y)-TILE_SIZE,
-                    (TILE_SIZE * x)+TILE_SIZE, -TILE_SIZE * y
-                });
-                texCoordData.insert(texCoordData.end(),
-                {
-                    u+border, v+border,
-                    u+border, v+(spriteHeight)+border,
-                    u+spriteWidth+border, v+(spriteHeight)+border,
-                    u+border, v+border,
-                    u+spriteWidth+border, v+(spriteHeight)+border,
-                    u+spriteWidth+border, v+border
-                });
-            }
-            
         }
     }
     GLuint fontTexture = LoadTexture("spritesheet.png", false);
@@ -748,9 +1161,51 @@ void renderTileLevel(ShaderProgram *program)
     glVertexAttribPointer(program->texCoordAttribute, 2, GL_FLOAT, false, 0, texCoordData.data());
     glEnableVertexAttribArray(program->texCoordAttribute);
     glBindTexture(GL_TEXTURE_2D, fontTexture);
-    glDrawArrays(GL_TRIANGLES, 0, mapHeight * mapWidth * 6);
+    glDrawArrays(GL_TRIANGLES, 0, (mapHeight * mapWidth * 6));
     glDisableVertexAttribArray(program->positionAttribute);
     glDisableVertexAttribArray(program->texCoordAttribute);
+    
+}
+
+bool DetectCollisionBullet(Entity entityOne/* paddle */, Bullet bullet /*pongBall*/)
+{
+    //float yDifferenceBetweenTwoEntities = 0.0f;
+    
+    //x position of the left hand side of entityOne
+    float entOneLeft = entityOne.entityVector.x-entityOne.width/2;
+    //x position of the right hand side of entityOne
+    float entOneRight = entityOne.entityVector.x+entityOne.width/2;
+    //y position of the top of entityOne
+    float entOneTop = entityOne.entityVector.y+entityOne.height/2;
+    //y position of the bottom of entityOne
+    float entOneBot = entityOne.entityVector.y-entityOne.height/2;
+    //x position of the left hand side of bullet
+    float entTwoLeft = bullet.x-bullet.width;
+    //x position of the right hand side of bullet
+    float entTwoRight = bullet.x+bullet.width;
+    //y position of the top of bullet
+    float entTwoTop = bullet.y+bullet.height;
+    //y position of the bot of bullet
+    float entTwoBot = bullet.y-bullet.height;
+    
+    //Box to box collision detection:
+    /*
+     a) is R1’s bottom higher than R2’s top?
+     b) is R1’s top lower than R2’s bottom?
+     c) is R1’s left larger than R2’s right?
+     d) is R1’s right smaller than R2’s left
+     */
+    //The rectangles are intersecting if NONE of the above are true.
+    
+    if(!(entOneBot > entTwoTop) && !(entOneTop < entTwoBot) && !(entOneLeft > entTwoRight)
+       && !(entOneRight < entTwoLeft))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
     
 }
 

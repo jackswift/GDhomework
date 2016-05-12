@@ -14,4 +14,5 @@
 
 
 unsigned int** levelData;
-unsigned int** level1Data;
+unsigned int** level2Data;
+unsigned int** level3Data;
