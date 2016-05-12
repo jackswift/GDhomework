@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
     
     readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/stage1Tiles.txt", 1);
     readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/level2.txt", 2);
-    readData("/Users/lyletrue/MyGameDesignHW2/HW4/NYUCodebase/stage3Tiles.txt", 3);
+    //readData("/Users/lyletrue/MyGameDesignHW2/Final/NYUCodebase/stage3Tiles.txt", 3);
     
     while (!done) {
         
